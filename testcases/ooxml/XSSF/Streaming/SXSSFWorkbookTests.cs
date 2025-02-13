@@ -14,15 +14,12 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 ==================================================================== */
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.Streaming;
 using NPOI.XSSF.UserModel;
 using NUnit.Framework;
+using System;
+using System.IO;
 
 namespace TestCases.XSSF.Streaming
 {
@@ -30,6 +27,13 @@ namespace TestCases.XSSF.Streaming
     class SXSSFWorkbookTests
     {
         private SXSSFWorkbook _objectToTest { get; set; }
+
+        [TearDown]
+        public void CleanUp()
+        {
+            if (_objectToTest != null)
+                _objectToTest.Dispose();
+        }
 
         [Test]
         public void
@@ -76,6 +80,8 @@ namespace TestCases.XSSF.Streaming
 
             Assert.IsTrue(result is GZIPSheetDataWriter);
 
+            if (result != null)
+                result.Close();
         }
 
         [Test]
@@ -86,6 +92,8 @@ namespace TestCases.XSSF.Streaming
 
             Assert.IsTrue(result is SheetDataWriter);
 
+            if (result != null)
+                result.Close();
         }
 
         [Test]
@@ -111,7 +119,6 @@ namespace TestCases.XSSF.Streaming
             _objectToTest.SetSelectedTab(0);
 
             Assert.IsTrue(_objectToTest.GetSheetAt(0).IsSelected);
-
         }
 
         [Test]
@@ -124,7 +131,6 @@ namespace TestCases.XSSF.Streaming
             _objectToTest.SetSelectedTab(0);
 
             Assert.IsTrue(_objectToTest.GetSheetAt(0).IsSelected);
-
         }
 
         [Test]
@@ -132,10 +138,9 @@ namespace TestCases.XSSF.Streaming
         {
             _objectToTest = new SXSSFWorkbook();
             _objectToTest.CreateSheet("test1");
-            _objectToTest.SetSheetName(0,"renamed");
-            
-            Assert.AreEqual("renamed", _objectToTest.GetSheetAt(0).SheetName);
+            _objectToTest.SetSheetName(0, "renamed");
 
+            Assert.AreEqual("renamed", _objectToTest.GetSheetAt(0).SheetName);
         }
 
         [Test]
@@ -172,7 +177,7 @@ namespace TestCases.XSSF.Streaming
             var sheet = _objectToTest.CreateSheet("test");
 
             Assert.NotNull(sheet);
-            Assert.AreEqual("test",sheet.SheetName);
+            Assert.AreEqual("test", sheet.SheetName);
         }
 
         [Test]
@@ -199,9 +204,7 @@ namespace TestCases.XSSF.Streaming
 
             Assert.AreEqual("1", sheet1.SheetName);
             Assert.AreEqual("2", sheet2.SheetName);
-
         }
-
 
         [Test]
         public void IfGivenTheIndexOfAnExistingSheetShouldReturnTheSheet()
@@ -215,7 +218,6 @@ namespace TestCases.XSSF.Streaming
 
             Assert.AreEqual("1", sheet1.SheetName);
             Assert.AreEqual("2", sheet2.SheetName);
-
         }
 
         [Test]
@@ -235,7 +237,7 @@ namespace TestCases.XSSF.Streaming
         [Test]
         public void IfAFontIsCreatedItShouldBeReturnedAndAddedToTheExistingWorkbook()
         {
-            _objectToTest=new SXSSFWorkbook();
+            _objectToTest = new SXSSFWorkbook();
             var font = _objectToTest.CreateFont();
 
             Assert.NotNull(font);
@@ -277,10 +279,10 @@ namespace TestCases.XSSF.Streaming
             var sheets = 1;
             var rows = 10;
             var cols = 10;
-            AddCells(_objectToTest, sheets,rows,cols,CellType.Numeric);
+            AddCells(_objectToTest, sheets, rows, cols, CellType.Numeric);
             var savePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "numericTest.xlsx");
             WriteFile(savePath, _objectToTest);
-           
+
             Assert.True(File.Exists(savePath));
             File.Delete(savePath);
         }
@@ -294,7 +296,7 @@ namespace TestCases.XSSF.Streaming
             var cols = 10;
             AddCells(_objectToTest, sheets, rows, cols, CellType.Numeric);
             var savePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "numericTest.xlsx");
-            var reSavePath = Path.Combine(TestContext.CurrentContext.TestDirectory , "numericTest2.xlsx");
+            var reSavePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "numericTest2.xlsx");
             WriteFile(savePath, _objectToTest);
 
             Assert.True(File.Exists(savePath));
@@ -451,7 +453,6 @@ namespace TestCases.XSSF.Streaming
             File.Delete(savePath);
         }
 
-
         private void AddCells(IWorkbook wb, int sheets, int rows, int columns, CellType type)
         {
             for (int j = 0; j < sheets; j++)
@@ -462,13 +463,12 @@ namespace TestCases.XSSF.Streaming
                     var row = sheet.CreateRow(k);
                     for (int i = 0; i < columns; i++)
                     {
-                        WriteCellValue(row, type, i, i); 
+                        WriteCellValue(row, type, i, i);
                     }
                 }
             }
         }
 
-        
         private void WriteFile(string saveAsPath, SXSSFWorkbook wb)
         {
             //Passing SXSSFWorkbook because IWorkbook does not implement .Dispose which cleans ups temporary files.
@@ -505,6 +505,33 @@ namespace TestCases.XSSF.Streaming
             else if (type == CellType.Formula)
             {
                 row.CreateCell(col).SetCellFormula("SUM(A1:A2)");
+            }
+        }
+
+        [Test]
+        public void StreamShouldBeLeavedOpen()
+        {
+            using (SXSSFWorkbook workbook = new SXSSFWorkbook())
+            {
+                ISheet sheet = workbook.CreateSheet("Sheet1");
+
+                // Write a large number of rows and columns to cause OutOfMemoryException
+                for (int rowNumber = 0; rowNumber < 10; rowNumber++) // Increase this number for more rows
+                {
+                    IRow row = sheet.CreateRow(rowNumber);
+                    for (int colNumber = 0; colNumber < 100; colNumber++) // Increase this number for more columns
+                    {
+                        ICell cell = row.CreateCell(colNumber);
+                        cell.SetCellValue($"Row {rowNumber + 1}, Column {colNumber + 1}");
+                    }
+                }
+
+                // Write the workbook data to a MemoryStream
+                using (var stream = new MemoryStream())
+                {
+                    workbook.Write(stream, true);
+                    Assert.IsTrue(stream.CanRead);
+                }
             }
         }
     }

@@ -1327,6 +1327,30 @@ namespace TestCases.SS.UserModel
         }
 
         [Test]
+        public void RemoveAllHyperlinks() 
+        {
+            IWorkbook workbook = _testDataProvider.CreateWorkbook();
+            IHyperlink hyperlink = workbook.GetCreationHelper().CreateHyperlink(HyperlinkType.Url);
+            hyperlink.Address = "https://poi.apache.org/";
+            ISheet sheet = workbook.CreateSheet();
+            ICell cell = sheet.CreateRow(5).CreateCell(1);
+            cell.Hyperlink = hyperlink;
+
+            Assert.AreEqual(1, workbook.GetSheetAt(0).GetHyperlinkList().Count);
+            // Save a workbook with a hyperlink
+            IWorkbook workbook2 = _testDataProvider.WriteOutAndReadBack(workbook);
+            Assert.AreEqual(1, workbook2.GetSheetAt(0).GetHyperlinkList().Count);
+        
+            // Remove all hyperlinks from a saved workbook
+            workbook2.GetSheetAt(0).GetRow(5).GetCell(1).RemoveHyperlink();
+            Assert.AreEqual(0, workbook2.GetSheetAt(0).GetHyperlinkList().Count);
+        
+            // Verify that hyperlink was removed from workbook after writing out
+            IWorkbook workbook3 = _testDataProvider.WriteOutAndReadBack(workbook2);
+            Assert.AreEqual(0, workbook3.GetSheetAt(0).GetHyperlinkList().Count);
+        }
+
+        [Test]
         public void NewMergedRegionAt()
         {
             IWorkbook workbook = _testDataProvider.CreateWorkbook();
@@ -1429,6 +1453,45 @@ namespace TestCases.SS.UserModel
             wb2.Close();
         }
 
+        [Test]
+        public void TestAutoSizeDate()
+        {
+            IWorkbook wb = _testDataProvider.CreateWorkbook();
+            ISheet s = wb.CreateSheet("Sheet1");
+            IRow r = s.CreateRow(0);
+            r.CreateCell(0).SetCellValue(1);
+            r.CreateCell(1).SetCellValue(123456);
+
+            // for the streaming-variant we need to enable autosize-tracking to make it work
+            TrackColumnsForAutoSizingIfSXSSF(s);
+
+            // Will be sized fairly small
+            s.AutoSizeColumn((short) 0);
+            s.AutoSizeColumn((short) 1);
+
+            // Size ranges due to different fonts on different machines
+            POITestCase.AssertBetween("Single number column width", (int) s.GetColumnWidth(0), 350, 570);
+            POITestCase.AssertBetween("6 digit number column width", (int) s.GetColumnWidth(1), 1500, 2100);
+
+            // Set a date format
+            ICellStyle cs = wb.CreateCellStyle();
+            IDataFormat f = wb.CreateDataFormat();
+            cs.DataFormat = (/*setter*/f.GetFormat("yyyy-mm-dd MMMM hh:mm:ss"));
+            r.GetCell(0).CellStyle = (/*setter*/cs);
+            r.GetCell(1).CellStyle = (/*setter*/cs);
+
+            Assert.IsTrue(DateUtil.IsCellDateFormatted(r.GetCell(0)));
+            Assert.IsTrue(DateUtil.IsCellDateFormatted(r.GetCell(1)));
+
+            // Should Get much bigger now
+            s.AutoSizeColumn((short) 0);
+            s.AutoSizeColumn((short) 1);
+
+            POITestCase.AssertBetween("Date column width", (int) s.GetColumnWidth(0), 4750, 7300);
+            POITestCase.AssertBetween("Date column width", (int) s.GetColumnWidth(1), 4750, 7300);
+
+            wb.Close();
+        }
     }
 
 }

@@ -26,7 +26,7 @@ namespace NPOI.XSSF.UserModel
      *
      * @author Yegor Kozlov
      */
-    public abstract class XSSFShape:IShape
+    public abstract class XSSFShape: IShape
     {
         public static int EMU_PER_PIXEL = 9525;
         public static int EMU_PER_POINT = 12700;
@@ -39,6 +39,7 @@ namespace NPOI.XSSF.UserModel
          */
         protected XSSFDrawing drawing;
 
+        protected IEG_Anchor IEGanchor;
         /**
          * The parent shape, always not-null for shapes in groups
          */
@@ -49,6 +50,9 @@ namespace NPOI.XSSF.UserModel
          */
         internal XSSFAnchor anchor;
 
+        public virtual string ShapeName => throw new System.NotImplementedException();
+
+        public virtual IChildAnchor Anchor => throw new System.NotImplementedException();
         /**
          * Return the Drawing that owns this shape
          *
@@ -78,12 +82,44 @@ namespace NPOI.XSSF.UserModel
             return anchor;
         }
 
+        public IEG_Anchor cellanchor
+        {
+            get
+            {
+                if(IEGanchor == null) {
+                    return parent.cellanchor;
+                }
+                return IEGanchor;
+            }
+            set
+            {
+                if(parent == null)
+                {
+                    IEGanchor = value;
+                }
+                else
+                {
+                    parent.cellanchor = value;
+                }
+            }
+        }
         /**
          * Returns xml bean with shape properties.
          *
          * @return xml bean with shape properties.
          */
         protected internal abstract NPOI.OpenXmlFormats.Dml.Spreadsheet.CT_ShapeProperties GetShapeProperties();
+
+        public abstract uint ID
+        {
+            get;
+        }
+
+        public abstract string Name
+        {
+            get;
+            set;
+        }
 
         /**
          * Whether this shape is not Filled with a color
@@ -148,7 +184,9 @@ namespace NPOI.XSSF.UserModel
             }
             set
             {
-                throw new System.NotImplementedException();
+                SetFillColor(value >> 16 & 0xff
+                           , value >>  8 & 0xff
+                           , value       & 0xff);
             }
         }
 
@@ -161,16 +199,29 @@ namespace NPOI.XSSF.UserModel
             set
             {
                 NPOI.OpenXmlFormats.Dml.Spreadsheet.CT_ShapeProperties props = GetShapeProperties();
-                CT_LineProperties ln = props.IsSetLn() ? props.ln : props.AddNewLn();
-                CT_PresetLineDashProperties dashStyle = new CT_PresetLineDashProperties();
-                dashStyle.val = (ST_PresetLineDashVal)(value + 1);
-                ln.prstDash = dashStyle;
+
+                if(value == LineStyle.None) {
+                    props.ln = null;
+                } else {
+
+                    CT_LineProperties ln = props.IsSetLn() ? props.ln : props.AddNewLn();
+                    CT_PresetLineDashProperties dashStyle = new CT_PresetLineDashProperties();
+                    dashStyle.val = (ST_PresetLineDashVal)value;
+                    ln.prstDash = dashStyle;
+                    props.ln = ln;
+                }
             }
         }
 
         public virtual int LineStyleColor
         {
             get { throw new System.NotImplementedException(); }
+            set
+            {
+                SetLineStyleColor(value >> 16 & 0xff
+                                , value >>  8 & 0xff
+                                , value       & 0xff);
+            }
         }
 
         public virtual double LineWidth
@@ -195,9 +246,42 @@ namespace NPOI.XSSF.UserModel
             }
         }
 
-        public void SetLineStyleColor(int lineStyleColor)
+        public virtual LineEndingCapType LineEndingCapType
         {
-            throw new System.NotImplementedException();
+            get
+            {
+                NPOI.OpenXmlFormats.Dml.Spreadsheet.CT_ShapeProperties props = GetShapeProperties();
+                return props.IsSetLn() ? (LineEndingCapType)props.ln.cap : LineEndingCapType.None;
+            }
+            set
+            {
+                if(value == LineEndingCapType.None)
+                {
+                    throw new System.ArgumentException();
+                }
+                NPOI.OpenXmlFormats.Dml.Spreadsheet.CT_ShapeProperties props = GetShapeProperties();
+                CT_LineProperties ln = props.IsSetLn() ? props.ln : props.AddNewLn();
+                ln.cap = (ST_LineCap) value;
+            }
+        }
+
+        public virtual CompoundLineType CompoundLineType
+        {
+            get
+            {
+                NPOI.OpenXmlFormats.Dml.Spreadsheet.CT_ShapeProperties props = GetShapeProperties();
+                return props.IsSetLn() ? (CompoundLineType)props.ln.cmpd : CompoundLineType.None;
+            }
+            set
+            {
+                if(value == CompoundLineType.None)
+                {
+                    throw new System.ArgumentException();
+                }
+                NPOI.OpenXmlFormats.Dml.Spreadsheet.CT_ShapeProperties props = GetShapeProperties();
+                CT_LineProperties ln = props.IsSetLn() ? props.ln : props.AddNewLn();
+                ln.cmpd = (ST_CompoundLine)value;
+            }
         }
     }
 }

@@ -17,16 +17,17 @@
 
 namespace TestCases.HSSF.Extractor
 {
-    using System;
-    using NPOI.HSSF;
-    using TestCases;
-    using NUnit.Framework;
-    using System.IO;
-    using TestCases.HSSF;
+    using NPOI;
     using NPOI.HSSF.Extractor;
     using NPOI.POIFS.FileSystem;
     using NPOI.Util;
+    using NUnit.Framework;
+    using System;
+    using System.IO;
     using System.Text;
+    using TestCases;
+    using TestCases.HSSF;
+    using System.Threading;
 
     /**
      * Unit tests for the Excel 5/95 and Excel 4 (and older) text 
@@ -40,6 +41,11 @@ namespace TestCases.HSSF.Extractor
             FileInfo file = HSSFTestDataSamples.GetSampleFile(sampleFileName);
 
             return new OldExcelExtractor(file);
+        }
+
+        public TestOldExcelExtractor()
+        {
+            Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.CreateSpecificCulture("en-US");
         }
 
         [Test]
@@ -216,45 +222,42 @@ namespace TestCases.HSSF.Extractor
             }
         }
 
-        [Test]
-        public void TestOpenInvalidFile()
+        [Test]//(expected=OfficeXmlFileException.class)
+        public void TestOpenInvalidFile1() => Assert.Throws<OfficeXmlFileException>(() =>
         {
             // a file that exists, but is a different format
-            try
-            {
-                CreateExtractor("WithVariousData.xlsx");
-                Assert.Fail("Should catch Exception here");
-            }
-            catch (OfficeXmlFileException)
-            {
-                // expected here
-            }
+            CreateExtractor("WithVariousData.xlsx");
+        });
+
+        [Test]//(expected=RecordFormatException.class)
+        public void TestOpenInvalidFile2() => Assert.Throws<RecordFormatException>(() =>
+        {
             // a completely different type of file
+            CreateExtractor("48936-strings.txt");
+        });
+
+        [Test]//(expected=FileNotFoundException.class)
+        public void TestOpenInvalidFile3() => Assert.Throws<NotSupportedException>(() =>
+        {
+            // a POIFS file which is not a Workbook
+            Stream @is = POIDataSamples.GetDocumentInstance().OpenResourceAsStream("47304.doc");
             try
             {
-                CreateExtractor("48936-strings.txt");
-                Assert.Fail("Should catch Exception here");
+                new OldExcelExtractor(@is).Close();
             }
-            catch (RecordFormatException)
+            finally
             {
-                // expected here
+                @is.Close();
             }
-        }
-        [Test]
-        public void TestOpenNonExistingFile()
+        });
+
+        [Test]//(expected= EmptyFileException.class)
+        public void TestOpenNonExistingFile() => Assert.Throws<FileNotFoundException>(() =>
         {
             // a file that exists, but is a different format
-            try
-            {
-                OldExcelExtractor extractor = new OldExcelExtractor(new FileInfo("notexistingfile.xls"));
-                extractor.Close();
-                Assert.Fail("Should catch Exception here");
-            }
-            catch (FileNotFoundException)
-            {
-                // expected here
-            }
-        }
+            OldExcelExtractor extractor = new OldExcelExtractor(new FileInfo("notexistingfile.xls"));
+            extractor.Close();
+        });
 
         [Test]
         public void TestInputStream()
@@ -389,7 +392,25 @@ namespace TestCases.HSSF.Extractor
                 Console.SetOut(save);
             }
         }
-
+        [Test]
+        public void TestEncryptionException()
+        {
+            //test file derives from Common Crawl
+            FileInfo file = HSSFTestDataSamples.GetSampleFile("60284.xls");
+            OldExcelExtractor ex = new OldExcelExtractor(file);
+            Assert.AreEqual(5, ex.BiffVersion);
+            Assert.AreEqual(5, ex.FileType);
+            try
+            {
+                var x = ex.Text;
+                Assert.Fail();
+            }
+            catch (EncryptedDocumentException)
+            {
+                Assert.IsTrue(true, "correct exception thrown");
+            }
+            ex.Close();
+        }
     }
 
 }

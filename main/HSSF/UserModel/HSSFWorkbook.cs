@@ -267,7 +267,7 @@ namespace NPOI.HSSF.UserModel
             }
 
             throw new ArgumentException("The supplied POIFSFileSystem does not contain a BIFF8 'Workbook' entry. "
-                + "Is it really an excel file?");
+                + "Is it really an excel file? Had: " + string.Join("\n", directory.EntryNames));
         }
 
         /// <summary>
@@ -285,19 +285,19 @@ namespace NPOI.HSSF.UserModel
             : this(directory, preserveNodes)
         {
         }
-            /**
-     * given a POI POIFSFileSystem object, and a specific directory
-     *  within it, read in its Workbook and populate the high and
-     *  low level models.  If you're reading in a workbook...start here.
-     *
-     * @param directory the POI filesystem directory to process from
-     * @param preserveNodes whether to preseve other nodes, such as
-     *        macros.  This takes more memory, so only say yes if you
-     *        need to. If set, will store all of the POIFSFileSystem
-     *        in memory
-     * @see org.apache.poi.poifs.filesystem.POIFSFileSystem
-     * @exception IOException if the stream cannot be read
-     */
+        /**
+         * given a POI POIFSFileSystem object, and a specific directory
+         *  within it, read in its Workbook and populate the high and
+         *  low level models.  If you're reading in a workbook...start here.
+         *
+         * @param directory the POI filesystem directory to process from
+         * @param preserveNodes whether to preseve other nodes, such as
+         *        macros.  This takes more memory, so only say yes if you
+         *        need to. If set, will store all of the POIFSFileSystem
+         *        in memory
+         * @see org.apache.poi.poifs.filesystem.POIFSFileSystem
+         * @exception IOException if the stream cannot be read
+         */
         public HSSFWorkbook(DirectoryNode directory, bool preserveNodes):base(directory)
         {
 
@@ -309,7 +309,7 @@ namespace NPOI.HSSF.UserModel
             //  POIFS any more
             if (!preserveNodes)
             {
-                this.directory = null;
+                ClearDirectory();
             }
 
             _sheets = new List<HSSFSheet>(INITIAL_CAPACITY);
@@ -759,32 +759,57 @@ namespace NPOI.HSSF.UserModel
             ValidateSheetIndex(sheetIx);
             return workbook.IsSheetVeryHidden(sheetIx);
         }
+
+        public SheetVisibility GetSheetVisibility(int sheetIx)
+        {
+            return workbook.GetSheetVisibility(sheetIx);
+        }
+
         /// <summary>
         /// Hide or Unhide a sheet
         /// </summary>
         /// <param name="sheetIx">The sheet index</param>
-        /// <param name="hidden">True to mark the sheet as hidden, false otherwise</param>
-        public void SetSheetHidden(int sheetIx, SheetState hidden)
+        /// <param name="hidden"></param>
+        [Obsolete]
+        public void SetSheetHidden(int sheetIx, SheetVisibility hidden)
         {
-            ValidateSheetIndex(sheetIx);
-            WorkbookUtil.ValidateSheetState(hidden);
-            workbook.SetSheetHidden(sheetIx, (int)hidden);
+            SetSheetVisibility(sheetIx, hidden);
         }
         /// <summary>
         /// Hide or unhide a sheet.
         /// </summary>
         /// <param name="sheetIx">The sheet number</param>
         /// <param name="hidden">0 for not hidden, 1 for hidden, 2 for very hidden</param>
+        [Obsolete]
         public void SetSheetHidden(int sheetIx, int hidden)
         {
-            ValidateSheetIndex(sheetIx);
-            workbook.SetSheetHidden(sheetIx, hidden);
+            switch(hidden)
+            {
+                case 0:
+                    SetSheetVisibility(sheetIx, SheetVisibility.Visible);
+                    break;
+                case 1:
+                    SetSheetVisibility(sheetIx, SheetVisibility.Hidden);
+                    break;
+                case 2:
+                    SetSheetVisibility(sheetIx, SheetVisibility.VeryHidden);
+                    break;
+                default:
+                    throw new ArgumentException("Invalid sheet state : " + hidden + "\n" +
+                            "Sheet state must beone of the Workbook.SHEET_STATE_* constants");
+            }
         }
         public void SetSheetHidden(int sheetIx, bool hidden)
         {
-            ValidateSheetIndex(sheetIx);
-            workbook.SetSheetHidden(sheetIx, hidden);
+            SetSheetVisibility(sheetIx, hidden ? SheetVisibility.Hidden : SheetVisibility.Visible);
         }
+
+        public void SetSheetVisibility(int sheetIx, SheetVisibility visibility)
+        {
+            ValidateSheetIndex(sheetIx);
+            workbook.SetSheetHidden(sheetIx, visibility);
+        }
+
         /// <summary>
         /// Returns the index of the sheet by his name
         /// </summary>
@@ -1354,10 +1379,10 @@ namespace NPOI.HSSF.UserModel
         public override void Write()
         {
             ValidateInPlaceWritePossible();
-
+            DirectoryNode dir = Directory;
             // Update the Workbook stream in the file
-            DocumentNode workbookNode = (DocumentNode)directory.GetEntry(
-                    GetWorkbookDirEntryName(directory));
+            DocumentNode workbookNode = (DocumentNode)dir.GetEntry(
+                    GetWorkbookDirEntryName(dir));
             NPOIFSDocument workbookDoc = new NPOIFSDocument(workbookNode);
             workbookDoc.ReplaceContents(new ByteArrayInputStream(GetBytes()));
 
@@ -1365,7 +1390,7 @@ namespace NPOI.HSSF.UserModel
             WriteProperties();
 
             // Sync with the File on disk
-            directory.FileSystem.WriteFileSystem();
+            dir.FileSystem.WriteFileSystem();
         }
 
         /**
@@ -1396,6 +1421,18 @@ namespace NPOI.HSSF.UserModel
 
         public override void Write(Stream stream)
         {
+            this.Write(stream, false);
+        }
+
+        /// <summary>
+        /// Write out this workbook to an Outputstream.  Constructs
+        /// a new POI POIFSFileSystem, passes in the workbook binary representation  and
+        /// Writes it out.
+        /// </summary>
+        /// <param name="stream">the stream you wish to write the XLS to</param>
+        /// <param name="leaveOpen">leave stream open or not</param>
+        public void Write(Stream stream, bool leaveOpen = false)
+        {
             NPOIFSFileSystem fs = new NPOIFSFileSystem();
             try
             {
@@ -1406,16 +1443,6 @@ namespace NPOI.HSSF.UserModel
             {
                 fs.Close();
             }
-        }
-        /// <summary>
-        /// Write out this workbook to an Outputstream.  Constructs
-        /// a new POI POIFSFileSystem, passes in the workbook binary representation  and
-        /// Writes it out.
-        /// </summary>
-        /// <param name="stream">the stream you wish to Write the XLS to</param>
-        public void Write(Stream stream, bool leaveOpen)
-        {
-            this.Write(stream);
         }
 
         /** Writes the workbook out to a brand new, empty POIFS */
@@ -1465,12 +1492,12 @@ namespace NPOI.HSSF.UserModel
 
                     // Copy over all the other nodes to our new poifs
                     EntryUtils.CopyNodes(
-                            new FilteringDirectoryNode(this.directory, excepts)
+                            new FilteringDirectoryNode(Directory, excepts)
                             , new FilteringDirectoryNode(fs.Root, excepts)
                     );
                     // YK: preserve StorageClsid, it is important for embedded workbooks,
                     // see Bugzilla 47920
-                    fs.Root.StorageClsid = (this.directory.StorageClsid);
+                    fs.Root.StorageClsid = (Directory.StorageClsid);
                 }
             }
         }
@@ -2083,9 +2110,8 @@ namespace NPOI.HSSF.UserModel
         public int AddOlePackage(byte[] oleData, String label, String fileName, String command)
         {
             // check if we were Created by POIFS otherwise create a new dummy POIFS for storing the package data
-            if (directory == null)
+            if (InitDirectory())
             {
-                directory = new POIFSFileSystem().Root;
                 preserveNodes = true;
             }
 
@@ -2095,9 +2121,9 @@ namespace NPOI.HSSF.UserModel
             do
             {
                 String storageStr = "MBD" + HexDump.ToHex(++storageId);
-                if (!directory.HasEntry(storageStr))
+                if (!Directory.HasEntry(storageStr))
                 {
-                    oleDir = directory.CreateDirectory(storageStr);
+                    oleDir = Directory.CreateDirectory(storageStr);
                     oleDir.StorageClsid = (/*setter*/ClassID.OLE10_PACKAGE);
                 }
             } while (oleDir == null);
@@ -2297,11 +2323,12 @@ namespace NPOI.HSSF.UserModel
             return workbook.ChangeExternalReference(oldUrl, newUrl);
         }
 
+        [Obsolete("use {@link POIDocument#getDirectory()} instead")]
         public DirectoryNode RootDirectory
         {
             get
             {
-                return directory;
+                return Directory;
             }
         }
 

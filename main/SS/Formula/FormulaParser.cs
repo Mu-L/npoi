@@ -31,6 +31,7 @@ namespace NPOI.SS.Formula
     using NPOI.SS.UserModel;
     using NPOI.SS.Util;
     using NPOI.Util;
+    using SixLabors.Fonts.Unicode;
 
     /// <summary>
     /// Specific exception thrown when a supplied formula does not Parse properly.
@@ -63,6 +64,7 @@ namespace NPOI.SS.Formula
     {
         private String _formulaString;
         private int _formulaLength;
+        /** points at the next character to be read (after the {@link #look} codepoint) */
         private int _pointer;
 
         private ParseNode _rootNode;
@@ -72,16 +74,16 @@ namespace NPOI.SS.Formula
         private const char LF = '\n';  // Normally just XSSF
 
         /**
-         * Lookahead Character.
+         * Lookahead unicode codepoint.
          * Gets value '\0' when the input string is exhausted
          */
-        private char look;
+        private int look;
 
         /**
          * Tracks whether the run of whitespace preceeding "look" could be an
          * intersection operator.  See GetChar.
          */
-        private bool _inIntersection = false;
+        private bool _inIntersection;
 
         private IFormulaParsingWorkbook _book;
         private static SpreadsheetVersion _ssVersion;
@@ -123,7 +125,7 @@ namespace NPOI.SS.Formula
          * @param formulaType the type of the formula, see {@link FormulaType}
          * @param sheetIndex  the 0-based index of the sheet this formula belongs to.
          * @param rowIndex  - the related cell's row index in 0-based form (-1 if the formula is not cell related)
-	     *                     used to handle structured references that have the "#This Row" quantifier.
+         *                     used to handle structured references that have the "#This Row" quantifier.
          * The sheet index is required to resolve sheet-level names. <code>-1</code> means that
          * the scope of the name will be ignored and  the parser will match names only by name
          *
@@ -183,7 +185,7 @@ namespace NPOI.SS.Formula
             }
             if (_pointer < _formulaLength)
             {
-                look = _formulaString[_pointer];
+                look = _formulaString.CodePointAt(_pointer);
             }
             else
             {
@@ -192,7 +194,7 @@ namespace NPOI.SS.Formula
                 look = (char)0;
                 _inIntersection = false;
             }
-            _pointer++;
+            _pointer+= StringUtil.CharCount(look);
             //Console.WriteLine("Got char: "+ look);
         }
 
@@ -208,7 +210,7 @@ namespace NPOI.SS.Formula
             }
             else
             {
-                msg = "Parse error near char " + (_pointer - 1) + " '" + look + "'"
+                msg = "Parse error near char " + (_pointer - 1) + " '" + char.ConvertFromUtf32(look) + "'"
                     + " in specified formula '" + _formulaString + "'. Expected "
                     + s;
             }
@@ -216,27 +218,37 @@ namespace NPOI.SS.Formula
         }
 
         /** Recognize an Alpha Character */
-        private static bool IsAlpha(char c)
+        private static bool IsAlpha(int c)
         {
-            return Char.IsLetter(c) || c == '$' || c == '_';
+            return CodePoint.IsLetter(new CodePoint(c)) || c == '$' || c == '_';
+        }
+
+        private static bool IsLetter(int c)
+        {
+            return CodePoint.IsLetter(new CodePoint(c));
         }
 
         /** Recognize a Decimal Digit */
-        private static bool IsDigit(char c)
+        private static bool IsDigit(int c)
         {
-            return Char.IsDigit(c);
+            return CodePoint.IsDigit(new CodePoint(c));
         }
 
         /** Recognize an Alphanumeric */
-        private static bool IsAlNum(char c)
+        private static bool IsAlNum(int c)
         {
             return IsAlpha(c) || IsDigit(c);
         }
 
         /** Recognize White Space */
-        private static bool IsWhite(char c)
+        private static bool IsWhite(int c)
         {
             return c == ' ' || c == TAB || c == CR || c == LF;
+        }
+
+        private static bool IsLetterOrDigit(int c)
+        {
+            return CodePoint.IsLetterOrDigit(new CodePoint(c));
         }
 
         /** Skip Over Leading White Space */
@@ -253,7 +265,7 @@ namespace NPOI.SS.Formula
          *  unchecked exception. This method does <b>not</b> consume whitespace (before or after the
          *  matched character).
          */
-        private void Match(char x)
+        private void Match(int x)
         {
             if (look != x)
             {
@@ -268,9 +280,9 @@ namespace NPOI.SS.Formula
                 throw expected("unquoted identifier");
             }
             StringBuilder sb = new StringBuilder();
-            while (Char.IsLetterOrDigit(look) || look == '.')
+            while (IsLetterOrDigit(look) || look == '.')
             {
-                sb.Append(look);
+                sb.Append(char.ConvertFromUtf32(look));
                 GetChar();
             }
             if (sb.Length < 1)
@@ -285,9 +297,9 @@ namespace NPOI.SS.Formula
         {
             StringBuilder value = new StringBuilder();
 
-            while (IsDigit(this.look))
+            while (IsDigit(look))
             {
-                value.Append(this.look);
+                value.Append(char.ConvertFromUtf32(look));
                 GetChar();
             }
             return value.Length == 0 ? null : value.ToString();
@@ -383,9 +395,15 @@ namespace NPOI.SS.Formula
          *
          * @return <c>true</c> if the specified character may be used in a defined name
          */
-        private static bool IsValidDefinedNameChar(char ch)
+        private static bool IsValidDefinedNameChar(int ch)
         {
-            if (Char.IsLetterOrDigit(ch))
+            if (IsLetterOrDigit(ch))
+            {
+                return true;
+            }
+            // the sheet naming rules are vague on whether unicode characters are allowed
+            // assume they're allowed.
+            if (ch > 128)
             {
                 return true;
             }
@@ -397,6 +415,7 @@ namespace NPOI.SS.Formula
                 case '\\': // of all things
                     return true;
             }
+            // includes special non-name control characters like ! $ : , ( ) [ ] and space
             return false;
         }
         /**
@@ -759,7 +778,7 @@ namespace NPOI.SS.Formula
                 GetChar();
             }
             // parse column quantifier
-            String startColumnName = null;
+            String startColumnName;
             String endColumnName = null;
             int nColQuantifiers = 0;
             savePtr1 = _pointer;
@@ -982,7 +1001,7 @@ namespace NPOI.SS.Formula
             StringBuilder name = new StringBuilder();
             while (look != ']')
             {
-                name.Append(look);
+                name.Append(char.ConvertFromUtf32(look));
                 GetChar();
             }
             Match(']');
@@ -1030,7 +1049,7 @@ namespace NPOI.SS.Formula
         {
             ResetPointer(savePointer);
 
-            if (Char.IsDigit(look))
+            if (IsDigit(look))
             {
                 return new ParseNode(ParseNumber());
             }
@@ -1083,13 +1102,13 @@ namespace NPOI.SS.Formula
             StringBuilder sb = new StringBuilder();
 
             // defined names may begin with a letter or underscore  or backslash
-            if (!char.IsLetter(look) && look != '_' && look != '\\')
+            if (!IsLetter(look) && look != '_' && look != '\\')
             {
                 throw expected("number, string, defined name, or data table");
             }
             while (IsValidDefinedNameChar(look))
             {
-                sb.Append(look);
+                sb.Append(char.ConvertFromUtf32(look));
                 GetChar();
             }
             SkipWhite();
@@ -1173,9 +1192,6 @@ namespace NPOI.SS.Formula
             }
             return new AreaReference(part1.CellReference, part2.CellReference);
         }
-        private string CELL_REF_PATTERN = "(\\$?[A-Za-z]+)?(\\$?[0-9]+)?";
-
-
 
 
         /**
@@ -1213,11 +1229,9 @@ namespace NPOI.SS.Formula
             {
                 return null;
             }
-            String rep = _formulaString.Substring(_pointer - 1, ptr - _pointer + 1);
+            ReadOnlySpan<char> rep = _formulaString.AsSpan(_pointer - 1, ptr - _pointer + 1);
 
-            Regex pattern = new Regex(CELL_REF_PATTERN);
-
-            if (!pattern.IsMatch(rep))
+            if (!CellReferenceParser.TryParseCellReference(rep, out _, out var column, out _, out var row))
             {
                 return null;
             }
@@ -1231,19 +1245,14 @@ namespace NPOI.SS.Formula
             }
             else if (hasLetters)
             {
-                if (!CellReference.IsColumnWithinRange(rep.Replace("$", ""), _ssVersion))
+                if (!CellReference.IsColumnWithinRange(column, _ssVersion))
                 {
                     return null;
                 }
             }
             else if (hasDigits)
             {
-                int i;
-                try
-                {
-                    i = Int32.Parse(rep.Replace("$", ""), CultureInfo.InvariantCulture);
-                }
-                catch
+                if (!CellReferenceParser.TryParsePositiveInt32Fast(row, out int i))
                 {
                     return null;
                 }
@@ -1260,7 +1269,7 @@ namespace NPOI.SS.Formula
 
 
             ResetPointer(ptr + 1); // stepping forward
-            return new SimpleRangePart(rep, hasLetters, hasDigits);
+            return new SimpleRangePart(rep.ToString(), hasLetters, hasDigits);
         }
 
 
@@ -1403,6 +1412,19 @@ namespace NPOI.SS.Formula
                 return sb.ToString();
             }
         }
+
+        private String GetBookName()
+        {
+            StringBuilder sb = new StringBuilder();
+            GetChar();
+            while (look != ']')
+            {
+                sb.Append(char.ConvertFromUtf32(look));
+                GetChar();
+            }
+            GetChar();
+            return sb.ToString();
+        }
         /**
          * Note - caller should reset {@link #_pointer} upon <code>null</code> result
          * @return The sheet name as an identifier <code>null</code> if '!' is not found in the right place
@@ -1413,15 +1435,7 @@ namespace NPOI.SS.Formula
             String bookName;
             if (look == '[')
             {
-                StringBuilder sb = new StringBuilder();
-                GetChar();
-                while (look != ']')
-                {
-                    sb.Append(look);
-                    GetChar();
-                }
-                GetChar();
-                bookName = sb.ToString();
+                bookName = GetBookName();
             }
             else
             {
@@ -1430,13 +1444,17 @@ namespace NPOI.SS.Formula
 
             if (look == '\'')
             {
-                StringBuilder sb = new StringBuilder();
-
                 Match('\'');
+                if (look == '[')
+                {
+                    bookName = GetBookName();
+                }
+
+                StringBuilder sb = new StringBuilder();
                 bool done = look == '\'';
                 while (!done)
                 {
-                    sb.Append(look);
+                    sb.Append(char.ConvertFromUtf32(look));
                     GetChar();
                     if (look == '\'')
                     {
@@ -1462,13 +1480,13 @@ namespace NPOI.SS.Formula
             }
 
             // unquoted sheet names must start with underscore or a letter
-            if (look == '_' || Char.IsLetter(look))
+            if (look == '_' || IsLetter(look))
             {
                 StringBuilder sb = new StringBuilder();
                 // can concatenate idens with dots
                 while (IsUnquotedSheetNameChar(look))
                 {
-                    sb.Append(look);
+                    sb.Append(char.ConvertFromUtf32(look));
                     GetChar();
                 }
                 NameIdentifier iden = new NameIdentifier(sb.ToString(), false);
@@ -1512,9 +1530,15 @@ namespace NPOI.SS.Formula
         /**
           * very similar to {@link SheetNameFormatter#isSpecialChar(char)}
           */
-        private bool IsUnquotedSheetNameChar(char ch)
+        private bool IsUnquotedSheetNameChar(int ch)
         {
-            if (Char.IsLetterOrDigit(ch))
+            if (IsLetterOrDigit(ch))
+            {
+                return true;
+            }
+            // the sheet naming rules are vague on whether unicode characters are allowed
+            // assume they're allowed.
+            if (ch > 128)
             {
                 return true;
             }
@@ -1531,7 +1555,7 @@ namespace NPOI.SS.Formula
             _pointer = ptr;
             if (_pointer <= _formulaLength)
             {
-                look = _formulaString[_pointer - 1];
+                look = _formulaString.CodePointAt(_pointer - StringUtil.CharCount(look));
             }
             else
             {
@@ -1544,7 +1568,9 @@ namespace NPOI.SS.Formula
         /**
          * @return <c>true</c> if the specified name is a valid cell reference
          */
-        private bool IsValidCellReference(String str)
+        private bool IsValidCellReference(String str) => IsValidCellReference(str.AsSpan());
+
+        private bool IsValidCellReference(ReadOnlySpan<char> str)
         {
             //check range bounds against grid max
             bool result = CellReference.ClassifyCellReference(str, _ssVersion) == NameType.Cell;
@@ -1557,7 +1583,7 @@ namespace NPOI.SS.Formula
                  * (b) LOG10 + 1
                  * In (a) LOG10 is a name of a built-in function. In (b) LOG10 is a cell reference
                  */
-                bool isFunc = FunctionMetadataRegistry.GetFunctionByName(str.ToUpper()) != null;
+                bool isFunc = FunctionMetadataRegistry.GetFunctionByName(str.ToString().ToUpper()) != null;
                 if (isFunc)
                 {
                     int savePointer = _pointer;
@@ -1649,9 +1675,9 @@ namespace NPOI.SS.Formula
             return GetFunction(name, nameToken, args);
         }
         /**
-	     * Adds a name (named range or user defined function) to underlying workbook's names table
-	     * @param functionName
-	     */
+         * Adds a name (named range or user defined function) to underlying workbook's names table
+         * @param functionName
+         */
         private void AddName(String functionName)
         {
             IName name = _book.CreateName();
@@ -1663,7 +1689,7 @@ namespace NPOI.SS.Formula
          * Generates the variable Function ptg for the formula.
          * 
          * For IF Formulas, Additional PTGs are Added To the Tokens
-     * @param name a {@link NamePtg} or {@link NameXPtg} or <code>null</code>
+         * @param name a {@link NamePtg} or {@link NameXPtg} or <code>null</code>
          * @return Ptg a null is returned if we're in an IF formula, it needs extreme manipulation and is handled in this Function
          */
         private ParseNode GetFunction(String name, Ptg namePtg, ParseNode[] args)
@@ -1760,7 +1786,7 @@ namespace NPOI.SS.Formula
             }
         }
 
-        private static bool IsArgumentDelimiter(char ch)
+        private static bool IsArgumentDelimiter(int ch)
         {
             return ch == ',' || ch == ')';
         }
@@ -1874,7 +1900,7 @@ namespace NPOI.SS.Formula
             }
             // named ranges and tables can start with underscore or backslash
             // see https://support.office.com/en-us/article/Define-and-use-names-in-formulas-4d0f13ac-53b7-422e-afd2-abd7ff379c64?ui=en-US&rs=en-US&ad=US#bmsyntax_rules_for_names
-            if (IsAlpha(look) || Char.IsDigit(look) || look == '\'' || look == '[' || look == '_' || look == '\\')
+            if (IsAlpha(look) || IsDigit(look) || look == '\'' || look == '[' || look == '_' || look == '\\')
             {
                 return ParseRangeExpression();
             }
@@ -2236,7 +2262,7 @@ namespace NPOI.SS.Formula
                         break;
                     }
                 }
-                Token.Append(look);
+                Token.Append(char.ConvertFromUtf32(look));
                 GetChar();
             }
             return Token.ToString();

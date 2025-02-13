@@ -82,7 +82,7 @@ namespace NPOI.SS.UserModel
     /// The most common type of sheet is the worksheet, which is represented as a grid of cells. Worksheet cells can
     /// contain text, numbers, dates, and formulas. Cells can also be formatted.
     /// </remarks>
-    public interface ISheet
+    public interface ISheet : IEnumerable<IRow>
     {
 
         /// <summary>
@@ -170,14 +170,14 @@ namespace NPOI.SS.UserModel
         /// This value represents the number of characters that can be displayed
         /// in a cell that is formatted with the standard font.
         /// </remarks>
-        void SetColumnWidth(int columnIndex, int width);
+        void SetColumnWidth(int columnIndex, double width);
 
         /// <summary>
         /// get the width (in units of 1/256th of a character width )
         /// </summary>
         /// <param name="columnIndex">the column to get (0-based)</param>
         /// <returns>the width in units of 1/256th of a character width</returns>
-        int GetColumnWidth(int columnIndex);
+        double GetColumnWidth(int columnIndex);
 
         /// <summary>
         /// get the width in pixel
@@ -189,14 +189,14 @@ namespace NPOI.SS.UserModel
         /// with the default font size (Arial 10pt for .xls and Calibri 11pt for .xlsx).
         /// If the default font is changed the column width can be streched
         /// </remarks>
-        float GetColumnWidthInPixels(int columnIndex);
+        double GetColumnWidthInPixels(int columnIndex);
 
         /// <summary>
         /// Get the default column width for the sheet (if the columns do not define their own width)
         /// in characters
         /// </summary>
         /// <value>default column width measured in characters.</value>
-        int DefaultColumnWidth { get; set; }
+        double DefaultColumnWidth { get; set; }
 
         /// <summary>
         /// Get the default row height for the sheet (if the rows do not define their own height) in
@@ -839,6 +839,12 @@ namespace NPOI.SS.UserModel
         /// </summary>
         /// <param name="dataValidation">The data validation object settings</param>
         void AddValidationData(IDataValidation dataValidation);
+
+        /// <summary>
+        /// Removes a data validation object
+        /// </summary>
+        /// <param name="dataValidation">The data validation object settings</param>
+        void RemoveDataValidation(IDataValidation dataValidation);
 
         /// <summary>
         /// Enable filtering for a range of cells

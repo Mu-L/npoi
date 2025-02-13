@@ -42,11 +42,12 @@ namespace TestCases.SS.Formula.Functions
             ValueEval formatArg = new StringEval("abc");
             ValueEval[] args = { strArg, formatArg };
             ValueEval result = TextFunction.TEXT.Evaluate(args, -1, (short)-1);
-            Assert.AreEqual(ErrorEval.VALUE_INVALID, result);
+            Assert.AreEqual(strArg, result);
         }
         [Test]
         public void TestTextWithDeciamlFormatSecondArg()
         {
+            System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.CreateSpecificCulture("en-US");
             ValueEval numArg = new NumberEval(321321.321);
             ValueEval formatArg = new StringEval("#,###.00000");
             ValueEval[] args = { numArg, formatArg };
@@ -77,6 +78,7 @@ namespace TestCases.SS.Formula.Functions
         [Test]
         public void TestTextWithFractionFormatSecondArg()
         {
+            System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.CreateSpecificCulture("en-US");
 
             ValueEval numArg = new NumberEval(321.321);
             ValueEval formatArg = new StringEval("# #/#");

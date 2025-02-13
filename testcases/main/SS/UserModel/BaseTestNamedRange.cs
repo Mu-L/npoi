@@ -671,23 +671,32 @@ namespace TestCases.SS.UserModel
         }
 
         [Test]
-        public void Test56781()
+        public void TestValid()
         {
             IWorkbook wb = _testDataProvider.CreateWorkbook();
 
             IName name = wb.CreateName();
-            foreach (String valid in Arrays.AsList(
+            foreach (string valid in Arrays.AsList(
                     "Hello",
                     "number1",
-                    "_underscore"
-                    //"p.e.r.o.i.d.s",
-                    //"\\Backslash",
-                    //"Backslash\\"
+                    "_underscore",
+                    "underscore_",
+                    "p.e.r.o.i.d.s",
+                    "\\Backslash",
+                    "Backslash\\"
                     ))
             {
                 name.NameName = valid;
             }
+            wb.Close();
+        }
 
+        [Test]
+        public void TestInvalid()
+        {
+            IWorkbook wb = _testDataProvider.CreateWorkbook();
+
+            IName name = wb.CreateName();
             try
             {
                 name.NameName = "";
@@ -698,7 +707,7 @@ namespace TestCases.SS.UserModel
                 Assert.AreEqual("Name cannot be blank", e.Message);
             }
 
-            foreach (String invalid in Arrays.AsList(
+            foreach (string invalid in Arrays.AsList(
                     "1number",
                     "Sheet1!A1",
                     "Exclamation!",
@@ -706,7 +715,18 @@ namespace TestCases.SS.UserModel
                     "Colon:",
                     "A-Minus",
                     "A+Plus",
-                    "Dollar$"))
+                    "Dollar$",
+                    ".periodAtBeginning",
+                    "R", //special shorthand
+                    "C", //special shorthand
+                    "A1", // A1-style cell reference
+                    "R1C1", // R1C1-style cell reference
+                    "NameThatIsLongerThan255Characters.NameThatIsLongerThan255Characters.NameThatIsLongerThan255Characters..." +
+                    "NameThatIsLongerThan255Characters.NameThatIsLongerThan255Characters.NameThatIsLongerThan255Characters..." +
+                    "NameThatIsLongerThan255Characters.NameThatIsLongerThan255Characters.NameThatIsLongerThan255Characters..." +
+                    "NameThatIsLongerThan255Characters.NameThatIsLongerThan255Characters.NameThatIsLongerThan255Characters..." +
+                    "NameThatIsLongerThan255Characters.NameThatIsLongerThan255Characters.NameThatIsLongerThan255Characters"
+                ))
             {
                 try
                 {
@@ -718,9 +738,23 @@ namespace TestCases.SS.UserModel
                     Assert.IsTrue(e.Message.StartsWith("Invalid name: '" + invalid + "'"), invalid);
                 }
             }
-
+            wb.Close();
         }
 
+        // bug 60260: renaming a sheet with a named range referring to a unicode (non-ASCII) sheet name
+        [Test]
+        public void RenameSheetWithNamedRangeReferringToUnicodeSheetName()
+        {
+            IWorkbook wb = _testDataProvider.CreateWorkbook();
+            wb.CreateSheet("Sheet\u30FB1");
+
+            IName name = wb.CreateName();
+            name.NameName = ("test_named_range");
+            name.RefersToFormula = ("'Sheet\u30FB201'!A1:A6");
+
+            wb.SetSheetName(0, "Sheet 1");
+            IOUtils.CloseQuietly(wb);
+        }
     }
 
 }

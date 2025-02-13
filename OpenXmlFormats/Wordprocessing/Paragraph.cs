@@ -331,7 +331,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
                     ((CT_Rel)o).Write(sw, "subDoc");
                 i++;
             }
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
         [XmlElement("oMath", typeof(CT_OMath), Namespace = "http://schemas.openxmlformats.org/officeDocument/2006/math", Order = 1)]
@@ -1035,8 +1035,6 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
         {
             sw.Write(string.Format("<w:{0}", nodeName));
             sw.Write(">");
-            if (this.sectPr != null)
-                this.sectPr.Write(sw, "sectPr");
             if (this.pPrChange != null)
                 this.pPrChange.Write(sw, "pPrChange");
             if (this.pStyle != null)
@@ -1105,6 +1103,8 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
                 this.outlineLvl.Write(sw, "outlineLvl");
             if (this.rPr != null)
                 this.rPr.Write(sw, "rPr");
+            if(this.sectPr != null)
+                this.sectPr.Write(sw, "sectPr");
             if (this.textDirection != null)
                 this.textDirection.Write(sw, "textDirection");
             if (this.textAlignment != null)
@@ -1116,7 +1116,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
             if (this.cnfStyle != null)
                 this.cnfStyle.Write(sw, "cnfStyle");
 
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
 
@@ -2053,7 +2053,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
                 this.oMath.Write(sw, "oMath");
             if (this.rPrChange != null)
                 this.rPrChange.Write(sw, "rPrChange");
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
 
@@ -2102,7 +2102,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
             sw.Write(">");
             if (this.sectPr != null)
                 this.sectPr.Write(sw, "sectPr");
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
         [XmlElement(Order = 0)]
@@ -2277,7 +2277,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
                 this.docGrid.Write(sw, "docGrid");
             if (this.printerSettings != null)
                 this.printerSettings.Write(sw, "printerSettings");
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
         [XmlElement(Order = 0)]
@@ -2587,7 +2587,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
     [XmlRoot(Namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main", IsNullable = true)]
     public class CT_SectPr
     {
-                private CT_FtnProps footnotePrField;
+        private CT_FtnProps footnotePrField;
 
         private CT_EdnProps endnotePrField;
 
@@ -2637,27 +2637,9 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
 
         public CT_SectPr()
         {
-            //this.sectPrChangeField = new CT_SectPrChange();
-            //this.printerSettingsField = new CT_Rel();
-            this.docGridField = new CT_DocGrid();
-            this.docGrid.type = ST_DocGrid.lines;
-            this.docGrid.typeSpecified = true;
-            this.docGrid.linePitch = "312";
-            
-            //this.rtlGutterField = new CT_OnOff();
-            //this.bidiField = new CT_OnOff();
-            //this.textDirectionField = new CT_TextDirection();
-            //this.titlePgField = new CT_OnOff();
-            //this.noEndnoteField = new CT_OnOff();
-            //this.vAlignField = new CT_VerticalJc();
-            //this.formProtField = new CT_OnOff();
             this.colsField = new CT_Columns();
             this.cols.space = 425;
             this.cols.spaceSpecified = true;
-            //this.pgNumTypeField = new CT_PageNumber();
-            //this.lnNumTypeField = new CT_LineNumber();
-            //this.pgBordersField = new CT_PageBorders();
-            //this.paperSrcField = new CT_PaperSource();
             this.pgMarField = new CT_PageMar();
             this.pgMar.top = 1440;
             this.pgMar.right = 1800;
@@ -3004,6 +2986,19 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
                 this.rsidSectField = value;
             }
         }
+
+        public bool IsSetTitlePg()
+        {
+            return this.titlePgField != null;
+        }
+
+        public CT_OnOff AddNewTitlePg()
+        {
+            if (this.titlePgField == null)
+                this.titlePgField = new CT_OnOff();
+            return this.titlePgField;
+        }
+
         public CT_PageMar AddPageMar()
         {
             this.pgMar = new CT_PageMar();
@@ -3179,7 +3174,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
                 this.printerSettings.Write(sw, "printerSettings");
             if (this.sectPrChange != null)
                 this.sectPrChange.Write(sw, "sectPrChange");
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
 
@@ -3248,7 +3243,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
                 this.between.Write(sw, "between");
             if (this.bar != null)
                 this.bar.Write(sw, "bar");
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
 
@@ -3644,10 +3639,10 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
         {
             return !(this.lineRuleField == ST_LineSpacingRule.nil);
         }
-        public bool IsSetBetweenLines()
-        {
-            return !string.IsNullOrEmpty(this.lineField);
-        }
+
+        public bool IsSetLine() => !string.IsNullOrEmpty(this.lineField);
+        public bool IsSetBetweenLines() => IsSetLine();
+
         public bool IsSetAfter()
         {
             return !(this.afterField == 0);
@@ -4161,7 +4156,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
                 this.oMath.Write(sw, "oMath");
             if (this.rPrChange != null)
                 this.rPrChange.Write(sw, "rPrChange");
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
         public CT_String AddNewRStyle()
         {
@@ -5813,7 +5808,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
                     x.Write(sw, "w");
                 }
             }
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
     }
@@ -5983,7 +5978,7 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
             sw.Write(">");
             if (this.pPr != null)
                 this.pPr.Write(sw, "pPr");
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
 
@@ -6284,7 +6279,7 @@ cnfStyleField == null;
             if (this.cnfStyle != null)
                 this.cnfStyle.Write(sw, "cnfStyle");
 
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
 
@@ -6875,7 +6870,7 @@ cnfStyleField == null;
             sw.Write(">");
             if (this.rPr != null)
                 this.rPr.Write(sw, "rPr");
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
 
@@ -7586,7 +7581,7 @@ cnfStyleField == null;
                     x.Write(sw, "imprint");
                 }
             }
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
     }
@@ -7634,9 +7629,10 @@ cnfStyleField == null;
         {
             sw.Write(string.Format("<w:{0}", nodeName));
             XmlHelper.WriteAttribute(sw, "w:type", this.type.ToString());
-            XmlHelper.WriteAttribute(sw, "w:clear", this.clear.ToString());
+            if(this.clear!= ST_BrClear.none)
+                XmlHelper.WriteAttribute(sw, "w:clear", this.clear.ToString());
             sw.Write(">");
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
         [XmlAttribute(Form = System.Xml.Schema.XmlSchemaForm.Qualified)]
@@ -7788,7 +7784,7 @@ cnfStyleField == null;
                 this.trPr.Write(sw, "trPr");
             if (this.tcPr != null)
                 this.tcPr.Write(sw, "tcPr");
-            sw.Write(string.Format("</w:{0}>", nodeName));
+            sw.WriteEndW(nodeName);
         }
 
         public CT_TblStylePr()

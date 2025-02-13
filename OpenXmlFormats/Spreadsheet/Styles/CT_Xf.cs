@@ -46,8 +46,12 @@ namespace NPOI.OpenXmlFormats.Spreadsheet
 
         public CT_Xf Copy()
         {
-            CT_Xf obj = new CT_Xf();
-            if (this.alignment!=null)
+            return CopyTo(new CT_Xf());
+        }
+
+        public CT_Xf CopyTo(CT_Xf obj)
+        {
+            if (this.alignment != null)
                 obj.alignment = this.alignment.Copy();
             obj.protection = this.protection;
             obj.extLstField = null == extLstField ? null : this.extLstField.Copy();
@@ -69,6 +73,7 @@ namespace NPOI.OpenXmlFormats.Spreadsheet
             obj.pivotButtonField = this.pivotButtonField;
             obj.quotePrefixField = this.quotePrefixField;
             obj.xfIdField = this.xfIdField;
+            obj.xfIdSpecifiedField = this.xfIdSpecifiedField;
             return obj;
         }
 
@@ -104,14 +109,15 @@ namespace NPOI.OpenXmlFormats.Spreadsheet
 
 
 
-        internal void Write(StreamWriter sw, string nodeName)
+        internal void Write(StreamWriter sw, string nodeName, bool writingCellStyle=false)
         {
             sw.Write(string.Format("<{0}", nodeName));
             XmlHelper.WriteAttribute(sw, "numFmtId", this.numFmtId, true);
             XmlHelper.WriteAttribute(sw, "fontId", this.fontId, true);
             XmlHelper.WriteAttribute(sw, "fillId", this.fillId, true);
             XmlHelper.WriteAttribute(sw, "borderId", this.borderId, true);
-            XmlHelper.WriteAttribute(sw, "xfId", this.xfId, true);
+            if (!writingCellStyle)
+                XmlHelper.WriteAttribute(sw, "xfId", this.xfId, true);
             XmlHelper.WriteAttribute(sw, "quotePrefix", this.quotePrefix,false);
             XmlHelper.WriteAttribute(sw, "pivotButton", this.pivotButton, false);
             if(this.applyNumberFormat)
@@ -187,6 +193,7 @@ namespace NPOI.OpenXmlFormats.Spreadsheet
             // first guess:
             return IsSetProtection() &&  (protectionField.locked == true);
         }
+
         public CT_CellProtection AddNewProtection()
         {
             this.protectionField = new CT_CellProtection();
@@ -295,6 +302,7 @@ namespace NPOI.OpenXmlFormats.Spreadsheet
                 this.xfIdSpecifiedField = true;
             }
         }
+
         [XmlIgnore]
         public bool xfIdSpecified
         {

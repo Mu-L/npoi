@@ -32,7 +32,7 @@ namespace NPOI.XSSF.UserModel
      * Represents a shape with a predefined geometry in a SpreadsheetML Drawing.
      * Possible shape types are defined in {@link NPOI.SS.UserModel.ShapeTypes}
      */
-    public class XSSFSimpleShape : XSSFShape, IEnumerable<XSSFTextParagraph>
+    public class XSSFSimpleShape : XSSFShape, IEnumerable<XSSFTextParagraph>, ISimpleShape
     { // TODO - instantiable superclass
         /**
          * List of the paragraphs that make up the text in this shape
@@ -112,6 +112,11 @@ namespace NPOI.XSSF.UserModel
                 CT_SolidColorFillProperties scfpr = endPr.AddNewSolidFill();
                 scfpr.AddNewSrgbClr().val = (/*setter*/new byte[] { 0, 0, 0 });
 
+                bodypr.lIns = 91440;    //default value
+                bodypr.tIns = 45720;    //default value
+                bodypr.rIns = 91440;    //default value
+                bodypr.bIns = 45720;    //default value
+
                 body.AddNewLstStyle();
 
                 prototype = shape;
@@ -125,6 +130,31 @@ namespace NPOI.XSSF.UserModel
             return ctShape;
         }
 
+        /**
+         * Returns the simple shape id.
+         * @return id of the simple shape
+         */
+        public override uint ID {
+            get
+            {
+                return ctShape.nvSpPr.cNvPr.id;
+            }
+        }
+
+        /**
+         * Returns the simple shape name.
+         * @return name of the simple shape
+         */
+        public override String Name {
+            get
+            {
+                return ctShape.nvSpPr.cNvPr.name;
+            }
+            set
+            {
+                ctShape.nvSpPr.cNvPr.name = value;
+            }
+        }
 
         public IEnumerator<XSSFTextParagraph> GetEnumerator()
         {
@@ -441,7 +471,21 @@ namespace NPOI.XSSF.UserModel
                     CT_RegularTextRun r = p.AddNewR();
                     CT_TextCharacterProperties rPr = r.AddNewRPr();
                     rPr.lang = (/*setter*/"en-US");
-
+                    if(ltPr.vertAlign != null)
+                    {
+                        switch(ltPr.vertAlign.val)
+                        {
+                            case ST_VerticalAlignRun.subscript:
+                                rPr.baseline = -25000;
+                                break;
+                            case ST_VerticalAlignRun.superscript:
+                                rPr.baseline = 30000;
+                                break;
+                            default:
+                                rPr.baseline = 0;
+                                break;
+                        }
+                    }
                     ApplyAttributes(ltPr, rPr);
 
                     r.t = (/*setter*/lt.t);
@@ -708,7 +752,7 @@ namespace NPOI.XSSF.UserModel
                 CT_TextBodyProperties bodyPr = ctShape.txBody.bodyPr;
                 if (bodyPr != null)
                 {
-                    if (value == -1)
+                    if (value == -1 || value == 3.6)
                     {
                         if (bodyPr.IsSetBIns()) bodyPr.UnsetBIns();
                     }
@@ -736,15 +780,16 @@ namespace NPOI.XSSF.UserModel
                         return Units.ToPoints(bodyPr.lIns);
                     }
                 }
-                // If this attribute is omitted, then a value of 0.05 inches is implied
-                return 3.6;
+                // If this attribute is omitted, then a value of 0.1 inches is implied
+                return 7.2;
+                ;
             }
             set
             {
                 CT_TextBodyProperties bodyPr = ctShape.txBody.bodyPr;
                 if (bodyPr != null)
                 {
-                    if (value == -1)
+                    if (value == -1 || value == 7.2)
                     {
                         if (bodyPr.IsSetLIns()) bodyPr.UnsetLIns();
                     }
@@ -772,15 +817,15 @@ namespace NPOI.XSSF.UserModel
                         return Units.ToPoints(bodyPr.rIns);
                     }
                 }
-                // If this attribute is omitted, then a value of 0.05 inches is implied
-                return 3.6;
+                // If this attribute is omitted, then a value of 0.1 inches is implied
+                return 7.2;
             }
             set
             {
                 CT_TextBodyProperties bodyPr = ctShape.txBody.bodyPr;
                 if (bodyPr != null)
                 {
-                    if (value == -1)
+                    if (value == -1 || value == 7.2)
                     {
                         if (bodyPr.IsSetRIns()) bodyPr.UnsetRIns();
                     }
@@ -815,7 +860,7 @@ namespace NPOI.XSSF.UserModel
                 CT_TextBodyProperties bodyPr = ctShape.txBody.bodyPr;
                 if (bodyPr != null)
                 {
-                    if (value == -1)
+                    if (value == -1 || value == 3.6)
                     {
                         if (bodyPr.IsSetTIns()) bodyPr.UnsetTIns();
                     }
@@ -969,5 +1014,7 @@ namespace NPOI.XSSF.UserModel
                 }
             }
         }
+
+        public override string ShapeName => ctShape.nvSpPr.cNvPr.name;
     }
 }

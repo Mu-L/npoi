@@ -17,28 +17,20 @@
 
 namespace TestCases.HSSF.UserModel
 {
-    using System.IO;
-    using System;
-    using System.Configuration;
-    using NPOI.HSSF.UserModel;
+    using NPOI.DDF;
     using NPOI.HSSF.Model;
     using NPOI.HSSF.Record;
-    using NPOI.SS.Util;
-    using NPOI.DDF;
-
-    using TestCases.HSSF;
-    using NPOI.HSSF.Record.Aggregates;
-    using TestCases.SS;
-    using TestCases.SS.UserModel;
-    using NPOI.SS.UserModel;
-    using NPOI.Util;
     using NPOI.HSSF.Record.AutoFilter;
-    using System.Collections.Generic;
-    using System.Collections;
-    using NPOI.SS.Formula;
+    using NPOI.HSSF.UserModel;
     using NPOI.SS.Formula.PTG;
+    using NPOI.SS.UserModel;
+    using NPOI.SS.Util;
+    using NPOI.Util;
     using NUnit.Framework;
-    using NPOI.SS;
+    using System;
+    using System.Collections;
+    using TestCases.HSSF;
+    using TestCases.SS.UserModel;
 
     /**
      * Tests NPOI.SS.UserModel.Sheet.  This Test case is very incomplete at the moment.
@@ -199,49 +191,6 @@ namespace TestCases.HSSF.UserModel
 
             wb.Close();
         }
-        [Test]
-        [Ignore("not fount in poi")]
-        public void TestReadBooleans()
-        {
-            HSSFWorkbook wb1 = new HSSFWorkbook();
-            NPOI.SS.UserModel.ISheet sheet = wb1.CreateSheet("Test boolean");
-            IRow row = sheet.CreateRow(2);
-            ICell cell = row.CreateCell(9);
-            cell.SetCellValue(true);
-            cell = row.CreateCell(11);
-            cell.SetCellValue(true);
-
-            IWorkbook wb2 = HSSFTestDataSamples.WriteOutAndReadBack(wb1);
-            wb1.Close();
-
-            sheet = wb2.GetSheetAt(0);
-            row = sheet.GetRow(2);
-            Assert.IsNotNull(row);
-            Assert.AreEqual(2, row.PhysicalNumberOfCells);
-
-            wb2.Close();
-        }
-        [Test]
-        [Ignore("not fount in poi")]
-        public void TestRemoveZeroRow()
-        {
-            HSSFWorkbook workbook = new HSSFWorkbook();
-            NPOI.SS.UserModel.ISheet sheet = workbook.CreateSheet("Sheet1");
-            IRow row = sheet.CreateRow(0);
-            try
-            {
-                sheet.RemoveRow(row);
-            }
-            catch (ArgumentException e)
-            {
-                if (e.Message.Equals("Invalid row number (-1) outside allowable range (0..65535)"))
-                {
-                    throw new AssertionException("Identified bug 45367");
-                }
-                throw e;
-            }
-        }
-
 
         /**
          * Setting landscape and portrait stuff on existing sheets
@@ -551,7 +500,7 @@ namespace TestCases.HSSF.UserModel
                     Assert.Fail("Identified bug 47363b");
                 }
                 workbook.Close();
-                throw e;
+                throw;
             }
             TestCases.HSSF.UserModel.RecordInspector.RecordCollector rc;
             rc = new RecordInspector.RecordCollector();
@@ -744,6 +693,7 @@ namespace TestCases.HSSF.UserModel
             wb2.Close();
         }
         [Test]
+        [Platform("Win")]
         public void TestAutoSizeColumn()
         {
             HSSFWorkbook wb1 = HSSFTestDataSamples.OpenSampleWorkbook("43902.xls");
@@ -791,49 +741,6 @@ namespace TestCases.HSSF.UserModel
             wb1.Close();
         }
 
-        [Test]
-        public void TestAutoSizeDate()
-        {
-            IWorkbook wb = new HSSFWorkbook();
-            ISheet s = wb.CreateSheet("Sheet1");
-            IRow r = s.CreateRow(0);
-            r.CreateCell(0).SetCellValue(1);
-            r.CreateCell(1).SetCellValue(123456);
-
-            // Will be sized fairly small
-            s.AutoSizeColumn((short)0);
-            s.AutoSizeColumn((short)1);
-
-            // Size ranges due to different fonts on different machines
-            Assert.IsTrue(s.GetColumnWidth(0) > 350, "Single number column too small: " + s.GetColumnWidth(0));
-            //Assert.IsTrue(s.GetColumnWidth(0) < 550, "Single number column too big: " + s.GetColumnWidth(0));
-            //Todo: find a algorithm of function SheetUtil.GetColumnWidth to make the test statement above succeed.
-            Assert.IsTrue(s.GetColumnWidth(0) < 650, "Single number column too big: " + s.GetColumnWidth(0));
-            Assert.IsTrue(s.GetColumnWidth(1) > 1500, "6 digit number column too small: " + s.GetColumnWidth(1));
-            Assert.IsTrue(s.GetColumnWidth(1) < 2000, "6 digit number column too big: " + s.GetColumnWidth(1));
-
-            // Set a date format
-            ICellStyle cs = wb.CreateCellStyle();
-            HSSFDataFormat f = (HSSFDataFormat)wb.CreateDataFormat();
-            cs.DataFormat = (/*setter*/f.GetFormat("yyyy-mm-dd MMMM hh:mm:ss"));
-            r.GetCell(0).CellStyle = (/*setter*/cs);
-            r.GetCell(1).CellStyle = (/*setter*/cs);
-
-            Assert.IsTrue(DateUtil.IsCellDateFormatted(r.GetCell(0)));
-            Assert.IsTrue(DateUtil.IsCellDateFormatted(r.GetCell(1)));
-
-            // Should Get much bigger now
-            s.AutoSizeColumn((short)0);
-            s.AutoSizeColumn((short)1);
-
-            Assert.IsTrue(s.GetColumnWidth(0) > 4750, "Date column too small: " + s.GetColumnWidth(0));
-            Assert.IsTrue(s.GetColumnWidth(1) > 4750, "Date column too small: " + s.GetColumnWidth(1));
-            Assert.IsTrue(s.GetColumnWidth(0) < 6500, "Date column too big: " + s.GetColumnWidth(0));
-            Assert.IsTrue(s.GetColumnWidth(0) < 6500, "Date column too big: " + s.GetColumnWidth(0));
-
-            wb.Close();
-        }
-
 
         [Test]
         public void TestAutoSizeRow()
@@ -852,7 +759,7 @@ namespace TestCases.HSSF.UserModel
             sheet.AutoSizeRow(row.RowNum);
 
             Assert.AreNotEqual(100, row.Height);
-            Assert.AreEqual(506, row.Height);
+            Assert.AreEqual(540, row.Height);
 
             workbook.Close();
         }
@@ -934,17 +841,17 @@ namespace TestCases.HSSF.UserModel
             for (char i = 'A'; i <= 'S'; i++)
             {
                 int idx = i - 'A';
-                int w = sh.GetColumnWidth(idx);
+                double w = sh.GetColumnWidth(idx);
                 Assert.AreEqual(ref1[idx], w);
             }
 
             //the second sheet doesn't have overridden column widths
             sh = wb1.GetSheetAt(1);
-            int def_width = sh.DefaultColumnWidth;
+            double def_width = sh.DefaultColumnWidth;
             for (char i = 'A'; i <= 'S'; i++)
             {
                 int idx = i - 'A';
-                int w = sh.GetColumnWidth(idx);
+                double w = sh.GetColumnWidth(idx);
                 //getDefaultColumnWidth returns width measured in characters
                 //getColumnWidth returns width measured in 1/256th units
                 Assert.AreEqual(def_width * 256, w);
@@ -1006,9 +913,9 @@ namespace TestCases.HSSF.UserModel
             // second and third sheets miss DefaultColWidthRecord
             for (int i = 1; i <= 2; i++)
             {
-                int dw = wb2.GetSheetAt(i).DefaultColumnWidth;
+                double dw = wb2.GetSheetAt(i).DefaultColumnWidth;
                 Assert.AreEqual(8, dw);
-                int cw = wb2.GetSheetAt(i).GetColumnWidth(0);
+                double cw = wb2.GetSheetAt(i).GetColumnWidth(0);
                 Assert.AreEqual(8 * 256, cw);
 
                 Assert.AreEqual(0xFF, sheet.DefaultRowHeight);

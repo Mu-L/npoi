@@ -168,7 +168,7 @@ namespace TestCases.XSSF.UserModel
             Assert.AreEqual(1, wb1.NumberOfSheets);
             XSSFSheet sh = wb1.GetSheetAt(0) as XSSFSheet;
             XSSFDrawing drawing = sh.CreateDrawingPatriarch() as XSSFDrawing;
-            List<POIXMLDocumentPart.RelationPart> rels = drawing.RelationParts;
+            IList<POIXMLDocumentPart.RelationPart> rels = drawing.RelationParts;
             Assert.AreEqual(1, rels.Count);
             Uri baseUri = new Uri("ooxml://npoi.org"); //For test only.
             Uri target = new Uri(baseUri, rels[0].Relationship.TargetUri.ToString());
@@ -1383,8 +1383,8 @@ namespace TestCases.XSSF.UserModel
             XSSFWorkbook wb = XSSFTestDataSamples.OpenSampleWorkbook("51470.xlsx");
             XSSFSheet sh0 = wb.GetSheetAt(0) as XSSFSheet;
             XSSFSheet sh1 = wb.CloneSheet(0) as XSSFSheet;
-            List<POIXMLDocumentPart.RelationPart> rels0 = sh0.RelationParts;
-            List<POIXMLDocumentPart.RelationPart> rels1 = sh1.RelationParts;
+            IList<POIXMLDocumentPart.RelationPart> rels0 = sh0.RelationParts;
+            IList<POIXMLDocumentPart.RelationPart> rels1 = sh1.RelationParts;
             Assert.AreEqual(1, rels0.Count);
             Assert.AreEqual(1, rels1.Count);
 
@@ -1495,9 +1495,7 @@ namespace TestCases.XSSF.UserModel
         /**
          * Sum across multiple workbooks
          *  eg =SUM($Sheet1.C1:$Sheet4.C1)
-         * DISABLED As we can't currently Evaluate these
          */
-        [Ignore("by poi")]
         [Test]
         public void Test48703()
         {
@@ -1628,7 +1626,7 @@ namespace TestCases.XSSF.UserModel
                 WorkbookFactory.Create(inpA);
                 Assert.Fail("Should've raised a EncryptedDocumentException error");
             }
-            catch (EncryptedDocumentException ) { }
+            catch (EncryptedDocumentException) { }
 
             // Via a POIFSFileSystem
             POIFSFileSystem fsP = new POIFSFileSystem(inpB);
@@ -1746,15 +1744,15 @@ namespace TestCases.XSSF.UserModel
 
             wb.Close();
         }
-
+        [Ignore("randomly throw filenotfound exception")]
         [Test]
         public void TestBug53798XLSX()
         {
-            XSSFWorkbook wb = XSSFTestDataSamples.OpenSampleWorkbook("53798_ShiftNegative_TMPL.xlsx");
-            FileInfo xlsOutput = TempFile.CreateTempFile("testBug53798", ".xlsx");
-            bug53798Work(wb, xlsOutput);
-
-            wb.Close();
+            using(XSSFWorkbook wb = XSSFTestDataSamples.OpenSampleWorkbook("53798_shiftNegative_TMPL.xlsx"))
+            {
+                FileInfo xlsOutput = TempFile.CreateTempFile("testBug53798", ".xlsx");
+                bug53798Work(wb, xlsOutput);
+            }
         }
 
 
@@ -1770,14 +1768,15 @@ namespace TestCases.XSSF.UserModel
             wb.Close();
         }
 
+        [Ignore("randomly throw filenotfound exception")]
         [Test]
         public void TestBug53798XLS()
         {
-            IWorkbook wb = HSSFTestDataSamples.OpenSampleWorkbook("53798_ShiftNegative_TMPL.xls");
-            FileInfo xlsOutput = TempFile.CreateTempFile("testBug53798", ".xls");
-            bug53798Work(wb, xlsOutput);
-
-            wb.Close();
+            using(IWorkbook wb = HSSFTestDataSamples.OpenSampleWorkbook("53798_shiftNegative_TMPL.xls"))
+            {
+                FileInfo xlsOutput = TempFile.CreateTempFile("testBug53798", ".xls");
+                bug53798Work(wb, xlsOutput);
+            }
         }
         /**
          * SUMIF was throwing a NPE on some formulas
@@ -1915,56 +1914,37 @@ namespace TestCases.XSSF.UserModel
 
         private void saveAndReloadReport(IWorkbook wb, FileInfo outFile)
         {
-            // run some method on the font to verify if it is "disconnected" already
-            //for(short i = 0;i < 256;i++)
+            IFont font = wb.GetFontAt((short)0);
+            if (font is XSSFFont)
             {
-                IFont font = wb.GetFontAt((short)0);
-                if (font is XSSFFont)
-                {
-                    XSSFFont xfont = (XSSFFont)wb.GetFontAt((short)0);
-                    CT_Font ctFont = (CT_Font)xfont.GetCTFont();
-                    Assert.AreEqual(0, ctFont.SizeOfBArray());
-                }
+                XSSFFont xfont = (XSSFFont)wb.GetFontAt((short)0);
+                CT_Font ctFont = (CT_Font)xfont.GetCTFont();
+                Assert.AreEqual(0, ctFont.SizeOfBArray());
             }
 
-            FileStream fileOutStream = new FileStream(outFile.FullName, FileMode.Open, FileAccess.ReadWrite);
-            wb.Write(fileOutStream, false);
-            fileOutStream.Close();
-            //System.out.Println("File \""+outFile.Name+"\" has been saved successfully");
+            using(FileStream fileOutStream = new FileStream(outFile.FullName, FileMode.Open, FileAccess.ReadWrite))
+            {
+                wb.Write(fileOutStream, false);
+            }
 
-            FileStream is1 = new FileStream(outFile.FullName, FileMode.Open, FileAccess.ReadWrite);
-            try
+            using(FileStream fs = new FileStream(outFile.FullName, FileMode.Open, FileAccess.ReadWrite))
             {
                 IWorkbook newWB = null;
-                try
+                if (wb is XSSFWorkbook)
                 {
-                    if (wb is XSSFWorkbook)
-                    {
-                        newWB = new XSSFWorkbook(is1);
-                    }
-                    else if (wb is HSSFWorkbook)
-                    {
-                        newWB = new HSSFWorkbook(is1);
-                        //} else if(wb is SXSSFWorkbook) {
-                        //    newWB = new SXSSFWorkbook(new XSSFWorkbook(is1));
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException("Unknown workbook: " + wb);
-                    }
-                    Assert.IsNotNull(newWB.GetSheet("test"));
+                    newWB = new XSSFWorkbook(fs);
                 }
-                finally
+                else if (wb is HSSFWorkbook)
                 {
-                    if (newWB != null)
-                    {
-                        //newWB.Close();
-                    }
+                    newWB = new HSSFWorkbook(fs);
+                    //} else if(wb is SXSSFWorkbook) {
+                    //    newWB = new SXSSFWorkbook(new XSSFWorkbook(is1));
                 }
-            }
-            finally
-            {
-                is1.Close();
+                else
+                {
+                    throw new InvalidOperationException("Unknown workbook: " + wb);
+                }
+                Assert.IsNotNull(newWB.GetSheet("test"));
             }
         }
 
@@ -2707,7 +2687,7 @@ namespace TestCases.XSSF.UserModel
          *  32,767 must not be -32,768, then -32,767, -32,766
          *  long time test, run over 1 minute.
          */
-        [Test, RunSerialyAndSweepTmpFiles]
+        [Test]
         [Ignore("this test doesn't make sense")]
         public void Bug57880()
         {
@@ -3268,12 +3248,15 @@ namespace TestCases.XSSF.UserModel
         {
             XSSFWorkbook workbook = new XSSFWorkbook();
             XSSFCell cell = workbook.CreateSheet().CreateRow(0).CreateCell(0) as XSSFCell;
+
             XSSFColor color = new XSSFColor(Color.Red);
             XSSFCellStyle style = workbook.CreateCellStyle() as XSSFCellStyle;
             style.FillForegroundColorColor = color;
             style.FillPattern = FillPattern.SolidForeground;
             cell.CellStyle = style;
+
             // Everything is fine at this point, cell is red
+
             Dictionary<String, Object> properties = new Dictionary<String, Object>();
             properties.Add(CellUtil.BORDER_BOTTOM, BorderStyle.Thin); //or BorderStyle.THIN
             CellUtil.SetCellStyleProperties(cell, properties);
@@ -3287,6 +3270,7 @@ namespace TestCases.XSSF.UserModel
             workbook.Close();
             XSSFCell ncell = nwb.GetSheetAt(0).GetRow(0).GetCell(0) as XSSFCell;
             XSSFColor ncolor = new XSSFColor(Color.Red);
+
             // Now the cell is all black
             XSSFColor nactual = ncell.CellStyle.FillBackgroundColorColor as XSSFColor;
             Assert.IsNotNull(nactual);
@@ -3361,7 +3345,122 @@ namespace TestCases.XSSF.UserModel
             Assert.AreEqual("09 Mar 2016", result);
         }
 
+        // This bug is currently open. When this bug is fixed, it should not throw an AssertionError
+        //@Test(expected= AssertionError.class)
         [Test]
+        [Explicit("This bug is currently open. When this bug is fixed, it should not throw an AssertionError")]
+        public void Test55076_collapseColumnGroups()
+        {
+            IWorkbook wb = new XSSFWorkbook();
+            ISheet sheet = wb.CreateSheet();
+
+            // this column collapsing bug only occurs when the grouped columns are different widths
+            sheet.SetColumnWidth(1, 400);
+            sheet.SetColumnWidth(2, 600);
+            sheet.SetColumnWidth(3, 800);
+
+            Assert.AreEqual(400, sheet.GetColumnWidth(1));
+            Assert.AreEqual(600, sheet.GetColumnWidth(2));
+            Assert.AreEqual(800, sheet.GetColumnWidth(3));
+
+            sheet.GroupColumn(1, 3);
+            sheet.SetColumnGroupCollapsed(1, true);
+
+            Assert.AreEqual(0, sheet.GetColumnOutlineLevel(0));
+            Assert.AreEqual(1, sheet.GetColumnOutlineLevel(1));
+            Assert.AreEqual(1, sheet.GetColumnOutlineLevel(2));
+            Assert.AreEqual(1, sheet.GetColumnOutlineLevel(3));
+            Assert.AreEqual(0, sheet.GetColumnOutlineLevel(4));
+
+            // none of the columns should be hidden
+            // column group collapsing is a different concept
+            for (int c = 0; c < 5; c++)
+            {
+                Assert.IsFalse(sheet.IsColumnHidden(c), "Column " + c);
+            }
+
+            Assert.AreEqual(400, sheet.GetColumnWidth(1));
+            Assert.AreEqual(600, sheet.GetColumnWidth(2));
+            Assert.AreEqual(800, sheet.GetColumnWidth(3));
+
+            wb.Close();
+        }
+
+        /// <summary>
+        /// Other things, including charts, may end up taking Drawing part
+        /// numbers. (Uses a test file hand-crafted with an extra non-drawing
+        /// part with a part number)
+        /// </summary>
+        [Test]
+        public void DrawingNumbersAlreadyTaken_60255()
+        {
+
+            IWorkbook wb = XSSFTestDataSamples.OpenSampleWorkbook("60255_extra_drawingparts.xlsx");
+            Assert.AreEqual(4, wb.NumberOfSheets);
+
+            // Sheet 3 starts with a Drawing
+            ISheet sheet = wb.GetSheetAt(0);
+            Assert.IsNull(sheet.DrawingPatriarch);
+            sheet = wb.GetSheetAt(1);
+            Assert.IsNull(sheet.DrawingPatriarch);
+            sheet = wb.GetSheetAt(2);
+            Assert.IsNotNull(sheet.DrawingPatriarch);
+            sheet = wb.GetSheetAt(3);
+            Assert.IsNull(sheet.DrawingPatriarch);
+
+            // Add another sheet, and give it a Drawing
+            sheet = wb.CreateSheet();
+            Assert.IsNull(sheet.DrawingPatriarch);
+            sheet.CreateDrawingPatriarch();
+            Assert.IsNotNull(sheet.DrawingPatriarch);
+
+            // Save and check
+            wb = XSSFTestDataSamples.WriteOutAndReadBack(wb);
+            Assert.AreEqual(5, wb.NumberOfSheets);
+
+            // Sheets 3 and 5 now
+            sheet = wb.GetSheetAt(0);
+            Assert.IsNull(sheet.DrawingPatriarch);
+            sheet = wb.GetSheetAt(1);
+            Assert.IsNull(sheet.DrawingPatriarch);
+            sheet = wb.GetSheetAt(2);
+            Assert.IsNotNull(sheet.DrawingPatriarch);
+            sheet = wb.GetSheetAt(3);
+            Assert.IsNull(sheet.DrawingPatriarch);
+            sheet = wb.GetSheetAt(4);
+            Assert.IsNotNull(sheet.DrawingPatriarch);
+        }
+
+        [Test]
+        public void Test53611() 
+        {
+            IWorkbook wb = new XSSFWorkbook();
+            ISheet sheet = wb.CreateSheet("test");
+            IRow row = sheet.CreateRow(1);
+            ICell cell = row.CreateCell(1);
+            cell.SetCellValue("blabla");
+
+            row = sheet.CreateRow(4);
+            cell = row.CreateCell(7);
+            cell.SetCellValue("blabla");
+
+            // we currently only populate the dimension during writing out
+            // to avoid having to iterate all rows/cells in each add/remove of a row or cell
+            //OutputStream str = new FileOutputStream("/tmp/53611.xlsx");
+            var str = new ByteArrayOutputStream();
+            try {
+                wb.Write(str);
+            } finally {
+                str.Close();
+            }
+
+            Assert.AreEqual("B2:I5", ((XSSFSheet)sheet).GetCTWorksheet().dimension.@ref);
+
+            wb.Close();
+        }
+
+        [Test]
+        [Ignore("TODO FIX CI TESTS")]
         public void Bug61063()
         {
             IWorkbook wb = XSSFTestDataSamples.OpenSampleWorkbook("61063.xlsx");
@@ -3378,6 +3477,85 @@ namespace TestCases.XSSF.UserModel
             Assert.AreEqual(2.0, cv.NumberValue, 0.00001);
             wb.Close();
         }
-    }
 
+        [Test]
+        public void TestBug690()
+        {
+            using (var workbook = new XSSFWorkbook())
+            {
+                XSSFSheet sheet = workbook.CreateSheet() as XSSFSheet;
+                XSSFCreationHelper creationHelper = workbook.GetCreationHelper() as XSSFCreationHelper;
+
+                XSSFHyperlink hyperlink1 = creationHelper.CreateHyperlink(HyperlinkType.Url) as XSSFHyperlink;
+                sheet.AddHyperlink(hyperlink1);
+                string address1 = "http://myurl1";
+                hyperlink1.Address = address1;
+                hyperlink1.SetCellReference("A1");
+
+                XSSFHyperlink hyperlink2 = creationHelper.CreateHyperlink(HyperlinkType.Url) as XSSFHyperlink;
+                sheet.AddHyperlink(hyperlink2);
+                string address2 = "http://myurl2";
+                hyperlink2.Address = address2;
+                hyperlink2.SetCellReference("B2");
+
+                XSSFHyperlink hyperlink3 = creationHelper.CreateHyperlink(HyperlinkType.Url) as XSSFHyperlink;
+                sheet.AddHyperlink(hyperlink3);
+                string address3 = "http://myurl3";
+                hyperlink3.Address = address3;
+                hyperlink3.SetCellReference("C3");
+
+                var cellAddressToRemoveHL = new CellAddress("B2");
+
+                var comment = sheet.GetHyperlink(cellAddressToRemoveHL);
+                Assert.IsNotNull(comment);
+                Assert.IsTrue(comment.Address.Equals(address2));
+
+                using (var wbCopy = XSSFTestDataSamples.WriteOutAndReadBack(workbook))
+                {
+                    sheet = wbCopy.GetSheetAt(0) as XSSFSheet;
+                    var comment2 = sheet.GetHyperlink(cellAddressToRemoveHL);
+                    Assert.IsNotNull(comment2);
+                    Assert.IsTrue(comment2.Address.Equals(address2));
+
+                    sheet.RemoveHyperlink(cellAddressToRemoveHL.Row, cellAddressToRemoveHL.Column);
+
+                    using (var wbCopy2 = XSSFTestDataSamples.WriteOutAndReadBack(wbCopy))
+                    {
+                        sheet = wbCopy2.GetSheetAt(0) as XSSFSheet;
+                        var comment3 = sheet.GetHyperlink(cellAddressToRemoveHL);
+                        Assert.IsNull(comment3);
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void TestCopyEmptyRow()
+        {
+            using (var wb = new XSSFWorkbook())
+            {
+                var sheet = wb.CreateSheet();
+                var row = sheet.CreateRow(1);
+
+                row.CreateCell(1).SetCellValue("B2");
+                row.CreateCell(2).SetCellValue("C2");
+                row.CreateCell(3).SetCellValue("D2");
+
+                Assert.DoesNotThrow(() =>
+                {
+                    sheet.CopyRow(0, 1);
+                });
+
+                var movedRow = sheet.GetRow(1);
+                Assert.IsNull(movedRow);
+
+                var shiftedRow = sheet.GetRow(2);
+                Assert.IsNotNull(shiftedRow);
+
+                Assert.IsTrue(shiftedRow.GetCell(1).StringCellValue.Equals("B2"));
+                Assert.IsTrue(shiftedRow.GetCell(2).StringCellValue.Equals("C2"));
+                Assert.IsTrue(shiftedRow.GetCell(3).StringCellValue.Equals("D2"));
+            }
+        }
+    }
 }

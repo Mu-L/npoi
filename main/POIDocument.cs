@@ -42,7 +42,7 @@ namespace NPOI
         /** Holds further metadata on our document */
         protected DocumentSummaryInformation dsInf;
         /**	The directory that our document lives in */
-        protected DirectoryNode directory;
+        private DirectoryNode directory;
 
         /// <summary>
         /// just for test case  TestPOIDocumentMain.TestWriteReadProperties
@@ -411,7 +411,7 @@ namespace NPOI
          * @ thrown on errors writing to the stream
          */
 
-        public abstract void Write(Stream out1);
+        public abstract void Write(Stream stream);
 
         /**
          * Closes the underlying {@link NPOIFSFileSystem} from which
@@ -426,7 +426,7 @@ namespace NPOI
             if (directory != null) {
                 if (directory.NFileSystem != null) {
                     directory.NFileSystem.Close();
-                    directory = null;
+                    ClearDirectory();
                 }
             }
         }
@@ -434,6 +434,45 @@ namespace NPOI
         public DirectoryNode Directory
         {
             get { return directory; }
+        }
+
+        /**
+         * Clear/unlink the attached directory entry
+         */
+        protected internal void ClearDirectory()
+        {
+            directory = null;
+        }
+
+        /**
+         * check if we were created by POIFS otherwise create a new dummy POIFS
+         * for storing the package data
+         * 
+         * @return {@code true} if dummy directory was created, {@code false} otherwise
+         */
+        protected bool InitDirectory()
+        {
+            if (directory == null)
+            {
+                directory = new NPOIFSFileSystem().Root;
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Replaces the attached directory, e.g. if this document is written
+         * to a new POIFSFileSystem
+         *
+         * @param newDirectory the new directory
+         * @return the old/previous directory
+         */
+        
+        protected internal DirectoryNode ReplaceDirectory(DirectoryNode newDirectory)
+        {
+            DirectoryNode dn = directory;
+            directory = newDirectory;
+            return dn;
         }
     }
 }

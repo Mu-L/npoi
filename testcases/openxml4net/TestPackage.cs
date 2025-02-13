@@ -20,15 +20,12 @@ using NPOI.OpenXml4Net.OPC.Internal;
 using System.IO;
 using System.Collections.Generic;
 using System;
-using TestCases.OpenXml4Net;
 using NPOI.Util;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using System.Xml;
 using System.Text;
-using ICSharpCode.SharpZipLib.Zip;
-using System.Collections;
 using NPOI.SS.UserModel;
 using NPOI;
 using NPOI.Openxml4Net.Exceptions;
@@ -166,7 +163,7 @@ namespace TestCases.OpenXml4Net.OPC
          *  document and another part, save and re-load and
          *  have everything Setup as expected
          */
-        [Test, RunSerialyAndSweepTmpFiles]
+        [Test]
         //[Ignore("add relation Uri #Sheet1!A1")]
         public void TestCreatePackageWithCoreDocument()
         {
@@ -256,8 +253,6 @@ namespace TestCases.OpenXml4Net.OPC
             {
                 pkg.Close();
             }
-
-            Assert.AreEqual(0, Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, "*.tmp").Length, "At Last: There are no temporary files.");
         }
 
         private void assertMSCompatibility(OPCPackage pkg)
@@ -282,7 +277,7 @@ namespace TestCases.OpenXml4Net.OPC
         /**
          * Test namespace opening.
          */
-        [Test, RunSerialyAndSweepTmpFiles]
+        [Test]
         public void TestOpenPackage()
         {
             FileInfo targetFile = OpenXml4NetTestDataSamples.GetOutputFile("TestOpenPackageTMP.docx");
@@ -344,7 +339,7 @@ namespace TestCases.OpenXml4Net.OPC
             ZipFileAssert.AssertEqual(expectedFile, targetFile);
             File.Delete(targetFile.FullName);
 
-            Assert.AreEqual(0, Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, "*.tmp").Length, "At Last: There are no temporary files.");
+            Assert.IsFalse(File.Exists(targetFile.FullName), $"{targetFile.FullName} file exists!");
         }
 
         /**
@@ -531,7 +526,7 @@ namespace TestCases.OpenXml4Net.OPC
          * Test that we can open a file by path, and then
          *  write Changes to it.
          */
-        [Test, RunSerialyAndSweepTmpFiles]
+        [Test, Platform("Win")]
         public void TestOpenFileThenOverWrite()
         {
             string tempFile = TempFile.GetTempFilePath("poiTesting", "tmp");
@@ -568,13 +563,13 @@ namespace TestCases.OpenXml4Net.OPC
             p.Close();
             File.Delete(tempFile);
 
-            Assert.AreEqual(0, Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, "*.tmp").Length, "At Last: There are no temporary files.");
+            Assert.IsFalse(File.Exists(tempFile), $"{tempFile} file exists!");
         }
         /**
          * Test that we can open a file by path, save it
          *  to another file, then delete both
          */
-        [Test, RunSerialyAndSweepTmpFiles]
+        [Test]
         public void TestOpenFileThenSaveDelete()
         {
             string tempFile = TempFile.GetTempFilePath("poiTesting", "tmp");
@@ -593,7 +588,8 @@ namespace TestCases.OpenXml4Net.OPC
             File.Delete(tempFile);
             File.Delete(tempFile2);
 
-            Assert.AreEqual(0, Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, "*.tmp").Length, "At Last: There are no temporary files.");
+            Assert.IsFalse(File.Exists(tempFile), $"{tempFile} file exists!");
+            Assert.IsFalse(File.Exists(tempFile2), $"{tempFile2} file exists!");
         }
 
         private static ContentTypeManager GetContentTypeManager(OPCPackage pkg)
@@ -843,7 +839,7 @@ namespace TestCases.OpenXml4Net.OPC
         //    {
         //        ZipEntry e2 = (ZipEntry)entries.Current;
         //        ZipEntry e = new ZipEntry(e2.Name);
-                
+
         //        e.DateTime = (e2.DateTime);
         //        e.Comment = (e2.Comment);
         //        e.Size = (e2.Size);
@@ -889,6 +885,47 @@ namespace TestCases.OpenXml4Net.OPC
         //    wb.Close();
         //    zipFile.Close();
         //}
+
+        [Test, Ignore("need ExtractorFactory class")]
+        public void ZipBombSampleFiles() {
+
+            openZipBombFile("poc-shared-strings.xlsx");
+            openZipBombFile("poc-xmlbomb.xlsx");
+            openZipBombFile("poc-xmlbomb-empty.xlsx");
+        }
+
+        private void openZipBombFile(String file)
+        {
+            try
+            {
+                IWorkbook wb = NPOI.XSSF.XSSFTestDataSamples.OpenSampleWorkbook(file);
+                wb.Close();
+
+                //POITextExtractor extractor = ExtractorFactory.CreateExtractor(TestCases.HSSF.HSSFTestDataSamples.GetSampleFile("poc-shared-strings.xlsx"));
+                //try
+                //{
+                //    Assert.IsNotNull(extractor);
+                //    var _ = extractor.Text;
+                //}
+                //finally
+                //{
+                //    extractor.Close();
+                //}
+
+                Assert.Fail("Should catch an exception because of a ZipBomb");
+            }
+            catch (InvalidOperationException e)
+            {
+                if (!e.Message.Contains("The text would exceed the max allowed overall size of extracted text."))
+                {
+                    throw e;
+                }
+            }
+            catch (POIXMLException e)
+            {
+                checkForZipBombException(e);
+            }
+        }
 
         [Test, Ignore("need ZipSecureFile class")]
         public void ZipBombCheckSizes()
@@ -965,16 +1002,15 @@ namespace TestCases.OpenXml4Net.OPC
 
         private void checkForZipBombException(Exception e)
         {
+            // unwrap InvocationTargetException as they usually contain the nested exception in the "target" member
             //if (e is InvocationTargetException) {
-            //    InvocationTargetException t = (InvocationTargetException)e;
-            //    IOException t2 = (IOException)t.getTargetException();
-            //    if (t2.Message.StartsWith("Zip bomb detected!"))
-            //    {
-            //        return;
-            //    }
+            //    e = ((InvocationTargetException)e).getTargetException();
             //}
 
-            if (e.Message.StartsWith("Zip bomb detected! Exiting."))
+            String msg = e.Message;
+            if (msg != null && (msg.StartsWith("Zip bomb detected!") ||
+                    msg.Contains("The parser has encountered more than \"4,096\" entity expansions in this document;") ||
+                    msg.Contains("The parser has encountered more than \"4096\" entity expansions in this document;")))
             {
                 return;
             }

@@ -18,7 +18,10 @@
 namespace TestCases.XSSF
 {
     using System;
+    using System.IO;
     using NPOI.SS.UserModel;
+    using NPOI.Util;
+    using NPOI.XSSF;
     using NPOI.XSSF.UserModel;
     using NUnit.Framework;
     using TestCases.HSSF;
@@ -58,6 +61,24 @@ namespace TestCases.XSSF
                 // expected here
             }
             Assert.AreEqual(1, wb.NumberOfSheets);
+        }
+
+        [Test]
+        public void Test60512()
+        {
+            XSSFWorkbook wb = XSSFTestDataSamples.OpenSampleWorkbook("60512.xlsm");
+
+            Assert.AreEqual(1, wb.NumberOfSheets);
+            ISheet sheet = wb.CloneSheet(0);
+            Assert.IsNotNull(sheet);
+            Assert.AreEqual(2, wb.NumberOfSheets);
+
+
+            IWorkbook wbBack = XSSFTestDataSamples.WriteOutAndReadBack(wb);
+            Assert.IsNotNull(wbBack);
+            wbBack.Close();
+
+            wb.Close();
         }
     }
 

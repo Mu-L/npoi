@@ -1,6 +1,8 @@
 What's NPOI
 ===================
-[![NuGet Badge](https://buildstats.info/nuget/NPOI)](https://www.nuget.org/packages/NPOI)
+[![NuGet](https://img.shields.io/nuget/dt/npoi)](https://www.nuget.org/packages/NPOI)
+[![Telegram](https://img.shields.io/badge/Chat-Telegram-2CA5E0.svg?logo=telegram&logoColor=white)](https://t.me/npoidevs)
+[![WhatsApp](https://img.shields.io/badge/Chat-WhatsApp-25D366?logo=whatsapp&logoColor=white)](https://chat.whatsapp.com/CKD9wv3eW37K20CPUjCXwy)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square&logo=Apache)](LICENSE)
 [![traffic](https://api.segment.io/v1/pixel/track?data=ewogICJ3cml0ZUtleSI6ICJBV2NjaWd1UkhKODBuNkJ4WlI4cHRaRzBINzY0RmJObCIsCiAgInVzZXJJZCI6ICJ0b255cXVzIiwKICAiZXZlbnQiOiAiTlBPSSBIb21lcGFnZSIKfQ==
 )](#)
@@ -11,36 +13,28 @@ What's NPOI
     />
   </a>
 <br />
-This project is the .NET version of POI Java project. With NPOI, you can read/write Office 2003/2007 files very easily.<br />
+This project is the .NET version of Apache POI project. With NPOI, you can read/write Office 2003/2007 files very easily.<br />
 
-About Donation 关于捐款
-============
-Since Github sponsorship is not supported in China so far, it's hard to get donation from Github channel. I'm strictly limiting my contribution time on NPOI these 2 years although it looks to be still maintained well. 
-
-If you profits/benefits from NPOI and you believe it's useful, please [donate this project](https://github.com/nissl-lab/npoi/discussions/923). Thank you!
-
-如果您从NPOI受益或实现盈利，请[给该项目捐款](https://github.com/nissl-lab/npoi/discussions/923)，谢谢！
-
-
-Telegram User Group
-================
-Join us on telegram: https://t.me/npoidevs
+Donation 
+=========
+If you profits/benefits from NPOI, please [sponsor me via Github Sponsor](https://github.com/sponsors/tonyqus) or [donate this project](https://github.com/nissl-lab/npoi/discussions/923). Thank you!
 
 Get Started with NPOI
 ============
-[How NPOI succeeds](https://tonyqus.medium.com/how-npoi-succeeds-67ceb7333eb)
 
-[Who is using NPOI?](https://github.com/nissl-lab/npoi/issues/705)
+[NPOI Tutorial on Youtube](https://github.com/nissl-lab/npoi-tutorial)
 
-[NPOI examples](https://github.com/nissl-lab/npoi-examples)
+[How NPOI succeed](https://tonyqus.medium.com/how-npoi-succeeds-67ceb7333eb)
 
 [Getting Started with NPOI](https://github.com/nissl-lab/npoi/wiki/Getting-Started-with-NPOI)
 
 [How to use NPOI on Linux](https://github.com/nissl-lab/npoi/wiki/How-to-use-NPOI-on-Linux)
 
-[ORM on NPOI](https://github.com/nissl-lab/npoi/wiki/ORM-on-NPOI)
+[Useful Packages based on NPOI](https://github.com/nissl-lab/npoi/wiki/ORM-on-NPOI)
 
 [NPOI Changelog](https://github.com/nissl-lab/npoi/wiki/Changelog)
+
+[NPOI code examples (This example repo is private. You can get access by sponsoring me)](https://github.com/sponsors/tonyqus)
 
 Advantage of NPOI
 =================
@@ -56,10 +50,7 @@ e. Support not only export but also import
 
 f. Real successful cases all over the world
 
-g. [huge amount of basic examples](https://github.com/nissl-lab/npoi-examples)
-
-h. Works on both Windows and Linux 
-
+g. Works on both Windows and Linux 
 
 System Requirement
 ===================
@@ -72,3 +63,5 @@ System Requirement
 Contributors
 ===================
 ![Contributors](https://contrib.rocks/image?repo=nissl-lab/npoi)
+
+<a href="https://info.flagcounter.com/bndt"><img src="https://s01.flagcounter.com/count/bndt/bg_FFFFFF/txt_000000/border_CCCCCC/columns_3/maxflags_20/viewers_0/labels_1/pageviews_1/flags_0/percent_0/" alt="Flag Counter" border="0"></a>

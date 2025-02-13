@@ -119,6 +119,29 @@ namespace NPOI.XSSF.UserModel
         }
 
         /**
+         * Returns the picture id.
+         * @return id of the picture
+         */
+        public override uint ID {
+            get {
+                return ctPicture.nvPicPr.cNvPr.id;
+            }
+        }
+
+        /**
+         * Returns the picture name.
+         * @return name of the picture
+         */
+        public override String Name {
+            get {
+                return ctPicture.nvPicPr.cNvPr.name;
+            }
+            set {
+                ctPicture.nvPicPr.cNvPr.name = value;
+            }
+        }
+
+        /**
          * Link this shape with the picture data
          *
          * @param rel relationship referring the picture data
@@ -366,6 +389,8 @@ namespace NPOI.XSSF.UserModel
                 return (XSSFSheet)this.GetDrawing().GetParent();
             }
         }
+
+        public override string ShapeName => ctPicture.nvPicPr.cNvPr.name;
     }
 }
 

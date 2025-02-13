@@ -19,7 +19,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using NPOI.SS.Formula.Function;
 
-namespace NPOI.SS.Formula.Atp {
+namespace NPOI.SS.Formula.Atp
+{
     using System;
     using System.Collections;
     using NPOI.SS.Formula;
@@ -57,11 +58,12 @@ namespace NPOI.SS.Formula.Atp {
         {
             // functions that are available in Excel 2007+ have a prefix _xlfn.
             // if you save such a .xlsx workbook as .xls
-            if (name.StartsWith("_xlfn.")) name = name.Substring(6);
+            String prefix = "_xlfn.";
+            if (name.StartsWith(prefix)) name = name.Substring(prefix.Length);
 
             string key = name.ToUpper();
             if (_functionsByName.ContainsKey(key))
-                return (FreeRefFunction)_functionsByName[key];
+                return _functionsByName[key];
 
             return null;
         }
@@ -86,6 +88,7 @@ namespace NPOI.SS.Formula.Atp {
             r(m, "BIN2OCT", null);
             r(m, "COMPLEX", Complex.Instance);
             r(m, "CONVERT", null);
+            r(m, "CONCAT", TextFunction.CONCAT);
             r(m, "COUNTIFS", Countifs.instance);
             r(m, "COUPDAYBS", null);
             r(m, "COUPDAYS", null);
@@ -181,6 +184,7 @@ namespace NPOI.SS.Formula.Atp {
             r(m, "TBILLPRICE", null);
             r(m, "TBILLYIELD", null);
             r(m, "TEXTJOIN", TextJoinFunction.instance);
+            r(m, "T.INV", TInv.instance);
             r(m, "WEEKNUM", WeekNum.instance);
             r(m, "WORKDAY", WorkdayFunction.instance);
             r(m, "WORKDAY.INTL", WorkdayIntlFunction.instance);
@@ -192,6 +196,15 @@ namespace NPOI.SS.Formula.Atp {
             r(m, "YIELD", null);
             r(m, "YIELDDISC", null);
             r(m, "YIELDMAT", null);
+
+            r(m, "CEILING.MATH", CeilingMath.Instance);
+            r(m, "FLOOR.MATH", FloorMath.Instance);
+
+            r(m, "STDEV.S", StdevS.Instance);
+            r(m, "STDEV.P", StdevP.Instance);
+            r(m, "VAR.S", VarS.Instance);
+            r(m, "VAR.P", VarP.Instance);
+
             return m;
         }
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.XPath;
@@ -27,12 +28,8 @@ namespace NPOI.OpenXml4Net.OPC
         private SortedList<String, PackageRelationship> relationshipsByID;
 
         /**
-         * Package relationships ordered by type.
+         * A lookup of internal relationships to avoid
          */
-        private SortedList<String, PackageRelationship> relationshipsByType;
-        /**
- * A lookup of internal relationships to avoid
- */
         private SortedList<String, PackageRelationship> internalRelationshipsByTargetName;
 
         /**
@@ -65,7 +62,6 @@ namespace NPOI.OpenXml4Net.OPC
         public PackageRelationshipCollection()
         {
             relationshipsByID = new SortedList<String, PackageRelationship>();
-            relationshipsByType = new SortedList<String, PackageRelationship>(new DuplicateComparer());
             internalRelationshipsByTargetName = new SortedList<string, PackageRelationship>();
         }
         class DuplicateComparer : IComparer<string>
@@ -150,7 +146,7 @@ namespace NPOI.OpenXml4Net.OPC
 
 
             if (container == null)
-                throw new ArgumentException("container");
+                throw new ArgumentException("container needs to be specified");
 
             // Check if the specified part is not a relationship part
             if (part != null && part.IsRelationshipPart)
@@ -205,7 +201,6 @@ namespace NPOI.OpenXml4Net.OPC
                 throw new ArgumentException("invalid relationship part/id");
             }
             relationshipsByID[relPart.Id] = relPart;
-            relationshipsByType[relPart.RelationshipType] = relPart;
         }
 
         /**
@@ -225,9 +220,9 @@ namespace NPOI.OpenXml4Net.OPC
         public PackageRelationship AddRelationship(Uri targetUri,
                 TargetMode targetMode, String relationshipType, String id)
         {
-            if (id == null)
+            if (string.IsNullOrEmpty(id))
             {
-                // Generate a unique ID is id parameter is null.
+                // Generate a unique ID if id parameter is null.
                 if (nextRelationshipId == -1)
                 {
                     nextRelationshipId = Size + 1;
@@ -243,8 +238,8 @@ namespace NPOI.OpenXml4Net.OPC
             PackageRelationship rel = new PackageRelationship(container,
                     sourcePart, targetUri, targetMode, relationshipType, id);
             relationshipsByID[rel.Id] = rel;
-            relationshipsByType[rel.RelationshipType] = rel;
-            if (targetMode == TargetMode.Internal)
+            if (targetMode == TargetMode.Internal
+                && !internalRelationshipsByTargetName.ContainsKey(targetUri.OriginalString))
             {
                 internalRelationshipsByTargetName.Add(targetUri.OriginalString, rel);
             }
@@ -259,20 +254,15 @@ namespace NPOI.OpenXml4Net.OPC
          */
         public void RemoveRelationship(String id)
         {
-            if (relationshipsByID != null && relationshipsByType != null)
+            if(relationshipsByID == null)
             {
-                PackageRelationship rel = relationshipsByID[id];
-                if (rel != null)
-                {
-                    relationshipsByID.Remove(rel.Id);
-                    for (int i = 0; i < relationshipsByType.Count; i++)
-                    {
-                        if (relationshipsByType.Values[i] == rel)
-                            relationshipsByType.RemoveAt(i);
-                    }
-                    
-                    internalRelationshipsByTargetName.RemoveAt(internalRelationshipsByTargetName.IndexOfValue(rel));
-                }
+                return;
+            }
+            PackageRelationship rel = relationshipsByID[id];
+            if (rel != null)
+            {
+                relationshipsByID.Remove(rel.Id);                    
+                internalRelationshipsByTargetName.RemoveAt(internalRelationshipsByTargetName.IndexOfValue(rel));
             }
         }
 
@@ -288,7 +278,6 @@ namespace NPOI.OpenXml4Net.OPC
                 throw new ArgumentException("rel");
 
             relationshipsByID.Values.Remove(rel);
-            relationshipsByType.Values.Remove(rel);
         }
 
         /**
@@ -320,6 +309,11 @@ namespace NPOI.OpenXml4Net.OPC
          */
         public PackageRelationship GetRelationshipByID(String id)
         {
+            if(id==null)
+            {
+                throw new ArgumentException("Cannot read relationship, provided ID is empty: " + id +
+                    ", having relationships: " + relationshipsByID.Keys.Select(key=>string.Join(",", key)));
+            }
             if (!relationshipsByID.ContainsKey(id))
                 return null;
             return relationshipsByID[id];
@@ -426,9 +420,7 @@ namespace NPOI.OpenXml4Net.OPC
          */
         public PackageRelationshipCollection GetRelationships(String typeFilter)
         {
-            PackageRelationshipCollection coll = new PackageRelationshipCollection(
-                    this, typeFilter);
-            return coll;
+            return new PackageRelationshipCollection(this, typeFilter);
         }
 
         /**
@@ -465,7 +457,6 @@ namespace NPOI.OpenXml4Net.OPC
         public void Clear()
         {
             relationshipsByID.Clear();
-            relationshipsByType.Clear();
             internalRelationshipsByTargetName.Clear();
         }
         public PackageRelationship FindExistingInternalRelation(PackagePart packagePart)
@@ -528,8 +519,7 @@ namespace NPOI.OpenXml4Net.OPC
 
         void IDisposable.Dispose()
         {
-            //relationshipsByID=null;
-            //relationshipsByType = null;
+
         }
 
         #endregion

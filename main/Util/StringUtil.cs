@@ -42,7 +42,7 @@ namespace NPOI.Util
     /// @since      May 10, 2002
     /// @version    1.0
     /// </summary>
-    public class StringUtil
+    public static class StringUtil
     {
         private static Encoding ISO_8859_1 = Encoding.GetEncoding("ISO-8859-1");
         private static Encoding UTF16LE = Encoding.Unicode;
@@ -50,9 +50,9 @@ namespace NPOI.Util
         /**     
          *  Constructor for the StringUtil object     
          */
-        private StringUtil()
-        {
-        }
+        //private StringUtil()
+        //{
+        //}
 
         /// <summary>
         /// Given a byte array of 16-bit unicode characters in Little Endian
@@ -510,8 +510,8 @@ namespace NPOI.Util
             {
 
                 int msCodepoint = char.ConvertToUtf32(string1, offset);//codePointAt(stringChars, offset, string1.Length);
-                int uniCodepoint = msCodepointToUnicode[(msCodepoint)];
-                sb.Append(Char.ConvertFromUtf32(uniCodepoint == null ? msCodepoint : uniCodepoint));
+
+                sb.Append(Char.ConvertFromUtf32(msCodepointToUnicode.TryGetValue(msCodepoint, out var uniCodepoint) ? uniCodepoint : msCodepoint));
                 offset += CharCount(msCodepoint);
             }
 
@@ -853,6 +853,45 @@ namespace NPOI.Util
         public static String Join(String separator, params object[] array)
         {
             return Join(array, separator);
+        }
+
+        /**
+        * Count number of occurrences of needle in haystack
+        * Has same signature as org.apache.commons.lang3.StringUtils#countMatches
+        *
+        * @param haystack  the CharSequence to check, may be null
+        * @param needle    the character to count the quantity of 
+        * @return the number of occurrences, 0 if the CharSequence is null
+        */
+        public static int CountMatches(string haystack, char needle)
+        {
+            if (haystack == null) return 0;
+            int count = 0;
+            int length = haystack.Length;
+            for (int i = 0; i < length; i++)
+            {
+                if (haystack[i] == needle)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+        
+        public static int CodePointAt(this string text, int index)
+        {
+            if (!char.IsSurrogate(text[index]))
+            {
+                return (int)text[index];
+            }
+            if (index + 1 < text.Length && char.IsSurrogatePair(text[index], text[index + 1]))
+            {
+                return char.ConvertToUtf32(text[index], text[index+1]);
+            }
+            else
+            {
+                throw new Exception("String was not well-formed UTF-16.");
+            }
         }
     }
 }

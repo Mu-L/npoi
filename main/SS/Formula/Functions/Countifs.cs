@@ -29,33 +29,36 @@ namespace NPOI.SS.Formula.Functions
      * </p>
      */
 
-    public class Countifs : FreeRefFunction
+    public class Countifs : Baseifs
     {
         public static FreeRefFunction instance = new Countifs();
 
-        public ValueEval Evaluate(ValueEval[] args, OperationEvaluationContext ec)
+        /**
+         * https://support.office.com/en-us/article/COUNTIFS-function-dda3dc6e-f74e-4aee-88bc-aa8c2a866842?ui=en-US&rs=en-US&ad=US
+         * COUNTIFS(criteria_range1, criteria1, [criteria_range2, criteria2]...)
+         * need at least 2 arguments and need to have an even number of arguments (criteria_range1, criteria1 plus x*(criteria_range, criteria))
+         * @see org.apache.poi.ss.formula.functions.Baseifs#hasInitialRange()
+         */
+        protected override bool HasInitialRange => false;
+
+        private class MyAggregator : IAggregator
         {
-            Double result = double.NaN;
-            if (args.Length == 0 || args.Length % 2 > 0)
+            double accumulator = 0.0;
+
+            public void AddValue(ValueEval d)
             {
-                return ErrorEval.VALUE_INVALID;
+                accumulator += 1.0;
             }
-            for (int i = 0; i < args.Length; )
+
+            public ValueEval GetResult()
             {
-                ValueEval firstArg = args[i];
-                ValueEval secondArg = args[i + 1];
-                i += 2;
-                NumberEval Evaluate = (NumberEval)new Countif().Evaluate(new ValueEval[] { firstArg, secondArg }, ec.RowIndex, ec.ColumnIndex);
-                if (double.IsNaN(result))
-                {
-                    result = Evaluate.NumberValue;
-                }
-                else if (Evaluate.NumberValue < result)
-                {
-                    result = Evaluate.NumberValue;
-                }
+                return new NumberEval(accumulator);
             }
-            return new NumberEval(double.IsNaN(result) ? 0 : result);
+        }
+
+        protected override IAggregator CreateAggregator()
+        {
+            return new MyAggregator();
         }
     }
 

@@ -20,7 +20,7 @@ namespace TestCases.Util
 {
     using System;
     using System.Text;
-
+    using System.Threading;
     using NPOI.Util;
     using NUnit.Framework;
     /**
@@ -248,10 +248,31 @@ namespace TestCases.Util
         [Test]
         public void Join()
         {
+            Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.CreateSpecificCulture("en-US");
             Assert.AreEqual("", StringUtil.Join(",")); // degenerate case: nothing to join
             Assert.AreEqual("abc", StringUtil.Join(",", "abc")); // degenerate case: one thing to join, no trailing comma
             Assert.AreEqual("abc|def|ghi", StringUtil.Join("|", "abc", "def", "ghi"));
             Assert.AreEqual("5|8.5|True|string", StringUtil.Join("|", 5, 8.5, true, "string")); //assumes Locale prints number decimal point as a period rather than a comma
+        }
+
+        [Test]
+        public void Count()
+        {
+            String test = "Apache POI project\n\u00a9 Copyright 2016";
+            // supports search in null or empty string
+            Assert.AreEqual(0, StringUtil.CountMatches(null, 'A'), "null");
+            Assert.AreEqual(0, StringUtil.CountMatches("", 'A'), "empty string");
+
+            Assert.AreEqual(2, StringUtil.CountMatches(test, 'e'), "normal");
+            Assert.AreEqual(1, StringUtil.CountMatches(test, 'a'), "normal, should not find a in escaped copyright");
+
+            // search for non-printable characters
+            Assert.AreEqual(0, StringUtil.CountMatches(test, '\0'), "null character");
+            Assert.AreEqual(0, StringUtil.CountMatches(test, '\r'), "CR");
+            Assert.AreEqual(1, StringUtil.CountMatches(test, '\n'), "LF");
+
+            // search for unicode characters
+            Assert.AreEqual(1, StringUtil.CountMatches(test, '\u00a9'), "Unicode");
         }
     }
 }

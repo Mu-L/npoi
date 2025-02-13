@@ -1601,8 +1601,8 @@ namespace TestCases.HSSF.UserModel
             Assert.IsFalse(wb.IsSheetHidden(2));
             Assert.IsTrue(wb.IsSheetVeryHidden(2));
 
-            // Change 0 to be very hidden, and re-load
-            wb.SetSheetHidden(0, 2);
+            // Change sheet 0 to be very hidden, and re-load
+            wb.SetSheetVisibility(0, SheetVisibility.VeryHidden);
 
             HSSFWorkbook nwb = WriteOutAndReadBack(wb);
 
@@ -1614,76 +1614,59 @@ namespace TestCases.HSSF.UserModel
             Assert.IsTrue(nwb.IsSheetVeryHidden(2));
         }
 
-        ///**
-        // * header / footer text too long
-        // */
-        //[Test]
-        //public void Test45777()
-        //{
-        //    HSSFWorkbook wb = new HSSFWorkbook();
-        //    Sheet s = wb.CreateSheet();
+        /// <summary>
+        /// The resolution for bug 45777 assumed that the maximum text length in a header / footer
+        /// record was 256 bytes.  This assumption appears to be wrong.  Since the fix for bug 47244,
+        /// POI now supports header / footer text lengths beyond 256 bytes.
+        /// </summary>
+        [Test]
+        public void Bug45777()
+        {
 
-        //    String s248 = "";
-        //    for (int i = 0; i < 248; i++)
-        //    {
-        //        s248 += "x";
-        //    }
-        //    String s249 = s248 + "1";
-        //    String s250 = s248 + "12";
-        //    String s251 = s248 + "123";
-        //    Assert.AreEqual(248, s248.Length);
-        //    Assert.AreEqual(249, s249.Length);
-        //    Assert.AreEqual(250, s250.Length);
-        //    Assert.AreEqual(251, s251.Length);
+            HSSFWorkbook wb = new HSSFWorkbook();
+            HSSFSheet s = wb.CreateSheet() as HSSFSheet;
 
+            char[] cc248 = new char[248];
+            Arrays.Fill(cc248, 'x');
+            String s248 = new String(cc248);
 
-        //    // Try on headers
-        //    s.Header.Center = (s248);
-        //    Assert.AreEqual(254, s.Header.RawHeader.Length);
-        //    WriteOutAndReadBack(wb);
-
-        //    s.Header.Center = (s249);
-        //    Assert.AreEqual(255, s.Header.RawHeader.Length);
-        //    WriteOutAndReadBack(wb);
-
-        //    try
-        //    {
-        //        s.Header.Center = (s250); // 256
-        //        Assert.Fail();
-        //    }
-        //    catch (ArgumentException e) { }
-
-        //    try
-        //    {
-        //        s.Header.Center = (s251); // 257
-        //        Assert.Fail();
-        //    }
-        //    catch (ArgumentException e) { }
+            String s249 = s248 + "1";
+            String s250 = s248 + "12";
+            String s251 = s248 + "123";
+            Assert.AreEqual(248, s248.Length);
+            Assert.AreEqual(249, s249.Length);
+            Assert.AreEqual(250, s250.Length);
+            Assert.AreEqual(251, s251.Length);
 
 
-        //    // Now try on footers
-        //    s.Footer.Center = (s248);
-        //    Assert.AreEqual(254, s.Footer.RawFooter.Length);
-        //    WriteOutAndReadBack(wb);
+            // Try on headers
+            s.Header.Center = (s248);
+            Assert.AreEqual(254, (s.Header as HSSFHeader).RawText.Length);
+            WriteOutAndReadBack(wb).Close();
 
-        //    s.Footer.Center = (s249);
-        //    Assert.AreEqual(255, s.Footer.RawFooter.Length);
-        //    WriteOutAndReadBack(wb);
+            s.Header.Center = (s251);
+            Assert.AreEqual(257, (s.Header as HSSFHeader).RawText.Length);
+            WriteOutAndReadBack(wb).Close();
 
-        //    try
-        //    {
-        //        s.Footer.Center = (s250); // 256
-        //        Assert.Fail();
-        //    }
-        //    catch (ArgumentException e) { }
+            // header can be more than 256 bytes
+            s.Header.Center = (s250); // 256 bytes required
+            s.Header.Center = (s251); // 257 bytes required
 
-        //    try
-        //    {
-        //        s.Footer.Center = (s251); // 257
-        //        Assert.Fail();
-        //    }
-        //    catch (ArgumentException e) { }
-        //}
+            // Now try on footers
+            s.Footer.Center = (s248);
+            Assert.AreEqual(254, (s.Footer as HSSFFooter).RawText.Length);
+            WriteOutAndReadBack(wb).Close();
+
+            s.Footer.Center = (s251);
+            Assert.AreEqual(257, (s.Footer as HSSFFooter).RawText.Length);
+            WriteOutAndReadBack(wb).Close();
+
+            // footer can be more than 256 bytes
+            s.Footer.Center = (s250); // 256 bytes required
+            s.Footer.Center = (s251); // 257 bytes required
+
+            wb.Close();
+        }
 
         /**
          * Charts with long titles
@@ -2054,7 +2037,7 @@ namespace TestCases.HSSF.UserModel
         {
             try
             {
-                OpenSample("NPOIBug5010.xls");
+                OpenSample("npoiBug5010.xls");
             }
             catch (RecordFormatException e)
             {
@@ -2072,7 +2055,7 @@ namespace TestCases.HSSF.UserModel
         {
             try
             {
-                OpenSample("NPOIBug5139.xls");
+                OpenSample("NpoiBug5139.xls");
             }
             catch (LeftoverDataException e)
             {
@@ -2274,16 +2257,16 @@ namespace TestCases.HSSF.UserModel
             }
         }
         /**
-     * Problems with formula references to 
-     *  sheets via URLs
-     */
+         * Problems with formula references to 
+         *  sheets via URLs
+         */
         [Test]
-        public void Test45970()
+        public void Bug45970()
         {
-            HSSFWorkbook wb = OpenSample("FormulaRefs.xls");
-            Assert.AreEqual(3, wb.NumberOfSheets);
+            HSSFWorkbook wb1 = OpenSample("FormulaRefs.xls");
+            Assert.AreEqual(3, wb1.NumberOfSheets);
 
-            ISheet s = wb.GetSheetAt(0);
+            ISheet s = wb1.GetSheetAt(0);
             IRow row;
 
             row = s.GetRow(0);
@@ -2310,9 +2293,19 @@ namespace TestCases.HSSF.UserModel
             Assert.AreEqual("'[$http://gagravarr.org/FormulaRefs.xls]Sheet1'!B1", row.GetCell(1).CellFormula);
             Assert.AreEqual(112.0, row.GetCell(1).NumericCellValue);
 
+            // Link our new workbook
+            IWorkbook externalWb1 = new HSSFWorkbook();
+            externalWb1.CreateSheet("Sheet1");
+            wb1.LinkExternalWorkbook("$http://gagravarr.org/FormulaRefs2.xls", externalWb1);
+
             // Change 4
             row.GetCell(1).CellFormula = ("'[$http://gagravarr.org/FormulaRefs2.xls]Sheet1'!B2");
             row.GetCell(1).SetCellValue(123.0);
+
+            // Link our new workbook
+            IWorkbook externalWb2 = new HSSFWorkbook();
+            externalWb2.CreateSheet("Sheet1");
+            wb1.LinkExternalWorkbook("$http://example.com/FormulaRefs.xls", externalWb2);
 
             // Add 5
             row = s.CreateRow(5);
@@ -2322,8 +2315,9 @@ namespace TestCases.HSSF.UserModel
 
 
             // Re-test
-            wb = WriteOutAndReadBack(wb);
-            s = wb.GetSheetAt(0);
+            HSSFWorkbook wb2 = WriteOutAndReadBack(wb1);
+            wb1.Close();
+            s = wb2.GetSheetAt(0);
 
             row = s.GetRow(0);
             Assert.AreEqual(CellType.Numeric, row.GetCell(1).CellType);
@@ -2344,25 +2338,20 @@ namespace TestCases.HSSF.UserModel
             Assert.AreEqual("[Formulas2.xls]Sheet1!B2", row.GetCell(1).CellFormula);
             Assert.AreEqual(112.0, row.GetCell(1).NumericCellValue);
 
-#if !HIDE_UNREACHABLE_CODE
-            // TODO - Fix these so they work...
-            if (1 == 2)
-            {
-                row = s.GetRow(4);
-                Assert.AreEqual(CellType.Formula, row.GetCell(1).CellType);
-                Assert.AreEqual("'[\u0005$http://gagravarr.org/FormulaRefs2.xls]Sheet1'!B2", row.GetCell(1).CellFormula);
-                Assert.AreEqual(123.0, row.GetCell(1).NumericCellValue);
+            row = s.GetRow(4);
+            Assert.AreEqual(CellType.Formula, row.GetCell(1).CellType);
+            Assert.AreEqual("'[$http://gagravarr.org/FormulaRefs2.xls]Sheet1'!B2", row.GetCell(1).CellFormula);
+            Assert.AreEqual(123.0, row.GetCell(1).NumericCellValue);
 
-                row = s.GetRow(5);
-                Assert.AreEqual(CellType.Formula, row.GetCell(1).CellType);
-                Assert.AreEqual("'[\u0005$http://example.com/FormulaRefs.xls]Sheet1'!B1", row.GetCell(1).CellFormula);
-                Assert.AreEqual(234.0, row.GetCell(1).NumericCellValue);
-            }
-#endif
+            row = s.GetRow(5);
+            Assert.AreEqual(CellType.Formula, row.GetCell(1).CellType);
+            Assert.AreEqual("'[$http://example.com/FormulaRefs.xls]Sheet1'!B1", row.GetCell(1).CellFormula);
+            Assert.AreEqual(234.0, row.GetCell(1).NumericCellValue);
+
+            wb2.Close();
         }
         [Test]
-        public void Test47251()
-        {
+        public void Test47251()        {
             // Firstly, try with one that triggers on InterfaceHdrRecord
             OpenSample("47251.xls");
 
@@ -2659,6 +2648,7 @@ namespace TestCases.HSSF.UserModel
          *  the bit excel cares about
          */
         [Test]
+        [Ignore("TODO NOT IMPLEMENTED")]
         public void Test50833()
         {
             HSSFWorkbook wb = OpenSample("50833.xls");
@@ -2748,12 +2738,13 @@ namespace TestCases.HSSF.UserModel
                 Assert.IsTrue(text.Contains("Bottom Right Cell"));
             }
         }
+
         /**
-     * Sum across multiple workbooks
-     *  eg =SUM($Sheet2.A1:$Sheet3.A1)
-     * DISABLED - We currently get the formula wrong, and mis-evaluate
-     */
-        public void DISABLEDtest48703()
+         * Sum across multiple workbooks
+         *  eg =SUM($Sheet2.A1:$Sheet3.A1)
+         */
+        [Test]
+        public void Test48703()
         {
             HSSFWorkbook wb = OpenSample("48703.xls");
             Assert.AreEqual(3, wb.NumberOfSheets);
@@ -2763,7 +2754,7 @@ namespace TestCases.HSSF.UserModel
             IRow r = sheet.GetRow(0);
             ICell c = r.GetCell(0);
 
-            Assert.AreEqual("SUM(Sheet2!A1:Sheet3!A1)", c.CellFormula);
+            Assert.AreEqual("SUM(Sheet2:Sheet3!A1)", c.CellFormula);
             Assert.AreEqual(4.0, c.NumericCellValue);
 
             // Check the evaluated result
@@ -2776,6 +2767,7 @@ namespace TestCases.HSSF.UserModel
          *  some may squeeze a WRITEPROTECT in the middle
          */
         [Test]
+        [Ignore("TODO NOT IMPLEMENTED")]
         public void Test51832()
         {
             try
@@ -2962,7 +2954,9 @@ namespace TestCases.HSSF.UserModel
             ICellStyle rstyle = row.RowStyle;
             Assert.AreEqual(rstyle.BorderBottom, BorderStyle.Double);
         }
+
         [Test]
+        [Ignore("TODO NOT IMPLEMENTED")]
         public void Bug35897()
         {
             // password is abc
@@ -3487,6 +3481,22 @@ namespace TestCases.HSSF.UserModel
             wb.Close();
         }
 
+
+        [Test]
+        public void Test45353a()
+        {
+            IWorkbook wb = HSSFTestDataSamples.OpenSampleWorkbook("named-cell-in-formula-test.xls");
+            wb.GetCreationHelper().CreateFormulaEvaluator().EvaluateAll();
+            wb.Close();
+        }
+
+        [Test]
+        public void Test45353b()
+        {
+            IWorkbook wb = HSSFTestDataSamples.OpenSampleWorkbook("named-cell-test.xls");
+            wb.GetCreationHelper().CreateFormulaEvaluator().EvaluateAll();
+            wb.Close();
+        }
 
         // follow https://svn.apache.org/viewvc?view=revision&revision=1896552 to write a unit test for this fix.
         [Test]

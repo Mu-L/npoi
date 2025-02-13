@@ -548,6 +548,20 @@ namespace NPOI.HSSF.UserModel
             dvt.AddDataValidation(dvRecord);
         }
 
+        public void RemoveDataValidation(IDataValidation dataValidation)
+        {
+            if (dataValidation == null)
+            {
+                throw new ArgumentException("objValidation must not be null");
+            }
+
+            HSSFDataValidation hssfDataValidation = (HSSFDataValidation)dataValidation;
+            DataValidityTable dvt = _sheet.GetOrCreateDataValidityTable();
+
+            DVRecord dvRecord = hssfDataValidation.CreateDVRecord(this);
+            dvt.RemoveDataValidation(dvRecord);
+        }
+
         /// <summary>
         /// Get the visibility state for a given column.F:\Gloria\�о�\�ļ���ʽ\NPOI\src\NPOI\HSSF\Util\HSSFDataValidation.cs
         /// </summary>
@@ -574,7 +588,7 @@ namespace NPOI.HSSF.UserModel
         /// </summary>
         /// <param name="column">the column to Set (0-based)</param>
         /// <param name="width">the width in Units of 1/256th of a Char width</param>
-        public void SetColumnWidth(int column, int width)
+        public void SetColumnWidth(int column, double width)
         {
             _sheet.SetColumnWidth(column, width);
         }
@@ -584,16 +598,16 @@ namespace NPOI.HSSF.UserModel
         /// </summary>
         /// <param name="column">the column to Set (0-based)</param>
         /// <returns>the width in Units of 1/256th of a Char width</returns>
-        public int GetColumnWidth(int column)
+        public double GetColumnWidth(int column)
         {
             return _sheet.GetColumnWidth(column);
         }
 
-        public float GetColumnWidthInPixels(int column)
+        public double GetColumnWidthInPixels(int column)
         {
-            int cw = GetColumnWidth(column);
-            int def = DefaultColumnWidth * 256;
-            float px = (cw == def ? PX_DEFAULT : PX_MODIFIED);
+            double cw = GetColumnWidth(column);
+            double def = DefaultColumnWidth * 256;
+            double px = (cw == def ? PX_DEFAULT : PX_MODIFIED);
 
             return cw / px;
         }
@@ -602,7 +616,7 @@ namespace NPOI.HSSF.UserModel
         /// Gets or sets the default width of the column.
         /// </summary>
         /// <value>The default width of the column.</value>
-        public int DefaultColumnWidth
+        public double DefaultColumnWidth
         {
             get { return _sheet.DefaultColumnWidth; }
             set { _sheet.DefaultColumnWidth = value; }
@@ -1692,6 +1706,7 @@ namespace NPOI.HSSF.UserModel
                 if (endRow == lastrow)
                 {
                     // Need to walk backward to find the last non-blank row
+                    // NOTE: n is always negative here
                     lastrow = Math.Min(endRow + n, SpreadsheetVersion.EXCEL97.LastRowIndex);
                     for (int i = endRow - 1; i > endRow + n; i++)
                     {
@@ -2338,7 +2353,23 @@ namespace NPOI.HSSF.UserModel
         /// <param name="useMergedCells">whether to use the contents of merged cells when calculating the width of the column</param>
         public void AutoSizeColumn(int column, bool useMergedCells)
         {
-            double width = SheetUtil.GetColumnWidth(this, column, useMergedCells);
+            AutoSizeColumn(column, useMergedCells, maxRows: 0);
+        }
+
+        /// <summary>
+        /// Adjusts the column width to fit the contents.
+        /// This Process can be relatively slow on large sheets, so this should
+        /// normally only be called once per column, at the end of your
+        /// Processing.
+        /// You can specify whether the content of merged cells should be considered or ignored.
+        /// Default is to ignore merged cells.
+        /// </summary>
+        /// <param name="column">the column index</param>
+        /// <param name="useMergedCells">whether to use the contents of merged cells when calculating the width of the column</param>
+        /// <param name="maxRows">limit the scope to maxRows rows to speed up the function, or leave 0 (optional)</param>
+        public void AutoSizeColumn(int column, bool useMergedCells, int maxRows = 0)
+        {
+            double width = SheetUtil.GetColumnWidth(this, column, useMergedCells, maxRows);
             if (width != -1)
             {
                 width *= 256;
@@ -3005,13 +3036,27 @@ namespace NPOI.HSSF.UserModel
                 HSSFRow destRow = (HSSFRow)newSheet.CreateRow(i);
                 if (srcRow != null)
                 {
-                    CopyRow(this, newSheet, srcRow, destRow, styleMap, new Dictionary<short, short>(), true);
+                    // avoid O(N^2) performance scanning through all regions for each row
+                    // merged regions will be copied after all the rows have been copied
+                    CopyRow(this, newSheet, srcRow, destRow, styleMap, new Dictionary<short, short>(), true, keepMergedRegions: false);
                     if (srcRow.LastCellNum > maxColumnNum)
                     {
                         maxColumnNum = srcRow.LastCellNum;
                     }
                 }
             }
+
+            // Copying merged regions
+            foreach (var srcRegion in this.MergedRegions)
+            {
+                var destRegion = srcRegion.Copy();
+                // Additional check here as Sheet.CloneSheet() should already have copied the merged regions
+                if (!newSheet.IsMergedRegion(destRegion))
+                {
+                    newSheet.AddMergedRegion(destRegion);
+                }
+            }
+
             for (int i = 0; i <= maxColumnNum; i++)
             {
                 newSheet.SetColumnWidth(i, GetColumnWidth(i));
@@ -3061,13 +3106,27 @@ namespace NPOI.HSSF.UserModel
                 HSSFRow destRow = (HSSFRow)newSheet.CreateRow(i);
                 if (srcRow != null)
                 {
-                    CopyRow(this, newSheet, srcRow, destRow, styleMap, paletteMap, keepFormulas);
+                    // avoid O(N^2) performance scanning through all regions for each row
+                    // merged regions will be copied after all the rows have been copied
+                    CopyRow(this, newSheet, srcRow, destRow, styleMap, paletteMap, keepFormulas, keepMergedRegions: false);
                     if (srcRow.LastCellNum > maxColumnNum)
                     {
                         maxColumnNum = srcRow.LastCellNum;
                     }
                 }
             }
+
+            // Copying merged regions
+            foreach (var srcRegion in this.MergedRegions)
+            {
+                var destRegion = srcRegion.Copy();
+                // Additional check here as Sheet.CloneSheet() should already have copied the merged regions
+                if (!newSheet.IsMergedRegion(destRegion))
+                {
+                    newSheet.AddMergedRegion(destRegion);
+                }
+            }
+
             for (int i = 0; i < maxColumnNum; i++)
             {
                 newSheet.SetColumnWidth(i, GetColumnWidth(i));
@@ -3221,7 +3280,7 @@ namespace NPOI.HSSF.UserModel
             }
             return retval;
         }
-        private static void CopyRow(HSSFSheet srcSheet, HSSFSheet destSheet, HSSFRow srcRow, HSSFRow destRow, IDictionary<Int32, HSSFCellStyle> styleMap, Dictionary<short, short> paletteMap, bool keepFormulas)
+        private static void CopyRow(HSSFSheet srcSheet, HSSFSheet destSheet, HSSFRow srcRow, HSSFRow destRow, IDictionary<Int32, HSSFCellStyle> styleMap, Dictionary<short, short> paletteMap, bool keepFormulas, bool keepMergedRegions)
         {
             List<SS.Util.CellRangeAddress> mergedRegions = destSheet.Sheet.MergedRecords.MergedRegions;
             destRow.Height = srcRow.Height;
@@ -3242,17 +3301,20 @@ namespace NPOI.HSSF.UserModel
                         newCell = (HSSFCell)destRow.CreateCell(j);
                     }
                     HSSFCellUtil.CopyCell(oldCell, newCell, styleMap, paletteMap, keepFormulas);
-                    CellRangeAddress mergedRegion = GetMergedRegion(srcSheet, srcRow.RowNum, (short)oldCell.ColumnIndex);
-                    if (mergedRegion != null)
+
+                    if (keepMergedRegions)
                     {
-                        CellRangeAddress newMergedRegion = new CellRangeAddress(mergedRegion.FirstRow,
-                                mergedRegion.LastRow, mergedRegion.FirstColumn, mergedRegion.LastColumn);
-                        if (IsNewMergedRegion(newMergedRegion, mergedRegions))
+                        CellRangeAddress mergedRegion = GetMergedRegion(srcSheet, srcRow.RowNum, (short)oldCell.ColumnIndex);
+                        if (mergedRegion != null)
                         {
-                            mergedRegions.Add(newMergedRegion);
+                            CellRangeAddress newMergedRegion = new CellRangeAddress(mergedRegion.FirstRow,
+                                    mergedRegion.LastRow, mergedRegion.FirstColumn, mergedRegion.LastColumn);
+                            if (IsNewMergedRegion(newMergedRegion, mergedRegions))
+                            {
+                                mergedRegions.Add(newMergedRegion);
+                            }
                         }
                     }
-
                 }
             }
         }
@@ -3326,6 +3388,11 @@ namespace NPOI.HSSF.UserModel
                 _sheet.ActiveCellRow = row;
                 _sheet.ActiveCellCol = col;
             }
+        }
+
+        IEnumerator<IRow> IEnumerable<IRow>.GetEnumerator()
+        {
+            return rows.Values.GetEnumerator();
         }
     }
 }

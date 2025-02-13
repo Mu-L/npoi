@@ -67,7 +67,7 @@ namespace NPOI.XSSF.UserModel
         public string GetSchema()
         {
             CT_Schema ctSchema = GetCTSchema();
-            return ctSchema.InnerXml;
+            return ctSchema.Any.OuterXml;
         }
 
         /**
@@ -104,9 +104,7 @@ namespace NPOI.XSSF.UserModel
          */
         public List<XSSFTable> GetRelatedTables()
         {
-
             List<XSSFTable> tables = new List<XSSFTable>();
-            int sheetNumber = mapInfo.Workbook.NumberOfSheets;
 
             foreach (ISheet sheet in mapInfo.Workbook)
             {
